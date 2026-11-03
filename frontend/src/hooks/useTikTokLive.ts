@@ -10,6 +10,7 @@ export interface PetInteractPayload {
   likeCount?: number;
   diamondCount?: number;
   giftName?: string;
+  streamUsername?: string;
 }
 
 const INITIAL_SNAPSHOT: DashboardSnapshot = {
@@ -42,7 +43,7 @@ const INITIAL_SNAPSHOT: DashboardSnapshot = {
   recentEvolutions: [],
 };
 
-export function useTikTokLive() {
+export function useTikTokLive(targetUsername?: string) {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot>(INITIAL_SNAPSHOT);
   const [isSocketConnected, setIsSocketConnected] = useState<boolean>(false);
   const socketRef = useRef<Socket | null>(null);
@@ -55,11 +56,14 @@ export function useTikTokLive() {
         ? 'http://localhost:3001'
         : '/');
 
+    const cleanUsername = targetUsername?.trim().replace(/^@/, '') || '';
+
     const socket = io(backendUrl, {
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
       timeout: 10000,
+      query: cleanUsername ? { username: cleanUsername } : undefined,
     });
 
     socketRef.current = socket;
@@ -67,6 +71,9 @@ export function useTikTokLive() {
     socket.on('connect', () => {
       setIsSocketConnected(true);
       console.log('[TikTokLive] Socket connected to:', backendUrl, socket.id);
+      if (cleanUsername) {
+        socket.emit('stream:join', { uniqueId: cleanUsername, autoConnect: true });
+      }
     });
 
     socket.on('disconnect', (reason) => {
@@ -85,11 +92,21 @@ export function useTikTokLive() {
       }
     });
 
+    socket.on('stream:error', (data: { message?: string }) => {
+      if (data?.message) {
+        setSnapshot((prev) => ({
+          ...prev,
+          status: 'ERROR',
+          errorMessage: data.message,
+        }));
+      }
+    });
+
     return () => {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, []);
+  }, [targetUsername]);
 
   const connectStream = useCallback((payload: ConnectPayload) => {
     if (!socketRef.current) return;
@@ -108,42 +125,51 @@ export function useTikTokLive() {
       status: 'SIMULATING',
       errorMessage: undefined,
     }));
-    socketRef.current.emit('stream:simulate', { uniqueId: uniqueId || 'demo_streamer' });
-  }, []);
+    const target = uniqueId || targetUsername || 'demo';
+    socketRef.current.emit('stream:simulate', { uniqueId: target });
+  }, [targetUsername]);
 
-  const disconnectStream = useCallback(() => {
+  const disconnectStream = useCallback((uniqueId?: string) => {
     if (!socketRef.current) return;
-    socketRef.current.emit('stream:disconnect');
-  }, []);
+    const target = uniqueId || targetUsername || snapshot.roomInfo?.uniqueId;
+    socketRef.current.emit('stream:disconnect', { uniqueId: target });
+  }, [targetUsername, snapshot.roomInfo?.uniqueId]);
 
-  const resetMetrics = useCallback(() => {
+  const resetMetrics = useCallback((uniqueId?: string) => {
     if (!socketRef.current) return;
-    socketRef.current.emit('stream:reset');
+    const target = uniqueId || targetUsername || snapshot.roomInfo?.uniqueId;
+    socketRef.current.emit('stream:reset', { uniqueId: target });
     setSnapshot(INITIAL_SNAPSHOT);
-  }, []);
+  }, [targetUsername, snapshot.roomInfo?.uniqueId]);
 
   const triggerPetInteract = useCallback((payload: PetInteractPayload) => {
+    const fullPayload = {
+      ...payload,
+      streamUsername: payload.streamUsername || targetUsername || snapshot.roomInfo?.uniqueId || 'demo',
+    };
+
     // Emit via socket if available
     if (socketRef.current && socketRef.current.connected) {
-      socketRef.current.emit('pet:interact', payload);
+      socketRef.current.emit('pet:interact', fullPayload);
       return;
     }
+
     // Also try REST API fallback
     fetch('/api/pet/interact', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(fullPayload),
     }).catch(() => {
       // Ignored if handled via socket
     });
-  }, []);
+  }, [targetUsername, snapshot.roomInfo?.uniqueId]);
 
   const exportJson = useCallback(() => {
     try {
       const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(snapshot, null, 2));
       const downloadAnchor = document.createElement('a');
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const username = snapshot.roomInfo?.uniqueId || 'stream';
+      const username = snapshot.roomInfo?.uniqueId || targetUsername || 'stream';
       downloadAnchor.setAttribute('href', dataStr);
       downloadAnchor.setAttribute('download', `tiktok-live-${username}-${timestamp}.json`);
       document.body.appendChild(downloadAnchor);
@@ -152,7 +178,7 @@ export function useTikTokLive() {
     } catch (err) {
       console.error('[TikTokLive] Failed to export JSON:', err);
     }
-  }, [snapshot]);
+  }, [snapshot, targetUsername]);
 
   return {
     snapshot,

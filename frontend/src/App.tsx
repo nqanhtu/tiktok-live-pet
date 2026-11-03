@@ -9,17 +9,6 @@ import { useTikTokLive } from './hooks/useTikTokLive';
 import { AlertCircle, WifiOff, RefreshCw } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const {
-    snapshot,
-    isSocketConnected,
-    connectStream,
-    startSimulation,
-    disconnectStream,
-    resetMetrics,
-    triggerPetInteract,
-    exportJson,
-  } = useTikTokLive();
-
   // Check if launched as a dedicated OBS Browser Source URL (/obs.html, /obs, ?obs=1, ?mode=overlay)
   const isPureObsUrl = (() => {
     if (typeof window === 'undefined') return false;
@@ -43,6 +32,21 @@ export const App: React.FC = () => {
     return raw.replace(/^@/, '').split('/')[0].trim();
   })();
 
+  const [activeStreamer, setActiveStreamer] = useState<string>(() => {
+    return urlTargetUsername || '';
+  });
+
+  const {
+    snapshot,
+    isSocketConnected,
+    connectStream,
+    startSimulation,
+    disconnectStream,
+    resetMetrics,
+    triggerPetInteract,
+    exportJson,
+  } = useTikTokLive(activeStreamer);
+
   // Initialize view mode with automatic URL query check
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (isPureObsUrl) return 'overlay';
@@ -64,24 +68,17 @@ export const App: React.FC = () => {
     document.body.classList.remove('bg-[#0a0b10]');
   }, [isPureObsUrl]);
 
-  // Auto-connect to stream when ?username=... is passed in the URL (like Zerody obs.html)
+  // Auto-retry in OBS mode if stream is offline/error
   useEffect(() => {
-    if (!urlTargetUsername || !isSocketConnected) return;
+    if (!isPureObsUrl || !activeStreamer || !isSocketConnected) return;
 
-    if (snapshot.status === 'IDLE') {
-      if (urlTargetUsername.toLowerCase() === 'demo') {
-        startSimulation('demo_streamer');
-      } else {
-        connectStream({ uniqueId: urlTargetUsername });
-      }
-    } else if (snapshot.status === 'ERROR' && isPureObsUrl) {
-      // Auto-retry every 30s in OBS mode if stream is offline/error
+    if (snapshot.status === 'ERROR') {
       const timer = setTimeout(() => {
-        connectStream({ uniqueId: urlTargetUsername });
+        connectStream({ uniqueId: activeStreamer });
       }, 30000);
       return () => clearTimeout(timer);
     }
-  }, [urlTargetUsername, isSocketConnected, snapshot.status, isPureObsUrl, connectStream, startSimulation]);
+  }, [activeStreamer, isSocketConnected, snapshot.status, isPureObsUrl, connectStream]);
 
   // Pure Frameless OBS Overlay Mode: render ONLY the single Pet Garden frame (no header, no footer, no website chrome)
   if (isPureObsUrl || viewMode === 'overlay') {
@@ -94,7 +91,7 @@ export const App: React.FC = () => {
           onTestPetInteract={triggerPetInteract}
           isFullScreen={true}
           pureObsMode={true}
-          streamUsername={snapshot.roomInfo?.uniqueId || urlTargetUsername}
+          streamUsername={activeStreamer || snapshot.roomInfo?.uniqueId || urlTargetUsername}
         />
         {!isPureObsUrl && (
           <button
@@ -118,10 +115,17 @@ export const App: React.FC = () => {
         isSocketConnected={isSocketConnected}
         viewMode={viewMode}
         onChangeViewMode={setViewMode}
-        onConnect={connectStream}
-        onSimulate={startSimulation}
-        onDisconnect={disconnectStream}
-        onReset={resetMetrics}
+        onConnect={(payload) => {
+          setActiveStreamer(payload.uniqueId);
+          connectStream(payload);
+        }}
+        onSimulate={(uid) => {
+          const target = uid || 'demo';
+          setActiveStreamer(target);
+          startSimulation(target);
+        }}
+        onDisconnect={() => disconnectStream(activeStreamer)}
+        onReset={() => resetMetrics(activeStreamer)}
         onExport={exportJson}
       />
 
@@ -152,7 +156,10 @@ export const App: React.FC = () => {
               </span>
             </div>
             <button
-              onClick={() => startSimulation()}
+              onClick={() => {
+                setActiveStreamer('demo');
+                startSimulation('demo');
+              }}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500/30 hover:bg-rose-500/40 border border-rose-400/40 text-white font-semibold transition active:scale-95"
             >
               <RefreshCw className="w-3 h-3" />
@@ -180,7 +187,7 @@ export const App: React.FC = () => {
                 recentEvolutions={snapshot.recentEvolutions}
                 onTestPetInteract={triggerPetInteract}
                 isFullScreen={false}
-                streamUsername={snapshot.roomInfo?.uniqueId || urlTargetUsername}
+                streamUsername={activeStreamer || snapshot.roomInfo?.uniqueId || urlTargetUsername}
                 onToggleFullScreen={() => setViewMode('overlay')}
               />
               <LiveCharts timeSeries={snapshot.timeSeries} />

@@ -4,8 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
-import { MetricsStore } from './metricsStore';
-import { TikTokService } from './tiktokService';
+import { SessionManager, normalizeUniqueId } from './sessionManager';
 import { ConnectPayload } from './types';
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
@@ -23,43 +22,26 @@ const io = new SocketIOServer(server, {
   },
 });
 
-const store = new MetricsStore();
-const tiktokService = new TikTokService(store);
-
-// Relay service events to socket clients
-tiktokService.on('event:chat', (chatItem) => {
-  io.emit('event:chat', chatItem);
-});
-
-tiktokService.on('event:gift', (giftItem) => {
-  io.emit('event:gift', giftItem);
-});
-
-tiktokService.on('event:social', (socialItem) => {
-  io.emit('event:social', socialItem);
-});
-
-tiktokService.on('event:pet_evolve', (evolutionEvent) => {
-  io.emit('event:pet_evolve', evolutionEvent);
-});
-
-tiktokService.on('stream:status', (status, error) => {
-  io.emit('stream:status', { status, error });
-  io.emit('metrics:snapshot', store.getSnapshot());
-});
-
-// Periodic snapshot broadcast every 1000ms
-setInterval(() => {
-  io.emit('metrics:snapshot', store.getSnapshot());
-}, 1000);
+// Central Multi-tenant Session Manager
+const sessionManager = new SessionManager(io);
 
 // REST API Endpoints
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, timestamp: Date.now() });
+  res.json({
+    ok: true,
+    activeSessions: sessionManager.getActiveSessionsSummary(),
+    timestamp: Date.now(),
+  });
 });
 
-app.get('/api/snapshot', (_req, res) => {
-  res.json(store.getSnapshot());
+app.get('/api/snapshot', (req, res) => {
+  const username = (req.query.username as string) || 'demo';
+  const session = sessionManager.getSession(username);
+  if (session) {
+    res.json(session.store.getSnapshot());
+  } else {
+    res.json(sessionManager.getOrCreateSession(username).store.getSnapshot());
+  }
 });
 
 app.post('/api/connect', async (req, res) => {
@@ -70,9 +52,9 @@ app.post('/api/connect', async (req, res) => {
   }
 
   try {
-    await tiktokService.connect(payload);
-    io.emit('metrics:snapshot', store.getSnapshot());
-    res.json({ success: true, snapshot: store.getSnapshot() });
+    const session = sessionManager.getOrCreateSession(payload.uniqueId);
+    await session.service.connect(payload);
+    res.json({ success: true, snapshot: session.store.getSnapshot() });
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to connect to TikTok LIVE' });
   }
@@ -80,110 +62,123 @@ app.post('/api/connect', async (req, res) => {
 
 app.post('/api/simulate', (req, res) => {
   const { uniqueId } = req.body || {};
-  tiktokService.startSimulation(uniqueId);
-  io.emit('metrics:snapshot', store.getSnapshot());
-  res.json({ success: true, snapshot: store.getSnapshot() });
+  const session = sessionManager.getOrCreateSession(uniqueId || 'demo');
+  session.service.startSimulation(session.uniqueId);
+  res.json({ success: true, snapshot: session.store.getSnapshot() });
 });
 
-app.post('/api/disconnect', (_req, res) => {
-  tiktokService.disconnect();
-  io.emit('metrics:snapshot', store.getSnapshot());
-  res.json({ success: true, snapshot: store.getSnapshot() });
-});
-
-// Helper for pet interactions
-function handlePetInteract(payload: {
-  action: 'spawn' | 'chat' | 'like' | 'gift';
-  uniqueId?: string;
-  nickname?: string;
-  comment?: string;
-  likeCount?: number;
-  diamondCount?: number;
-  giftName?: string;
-}) {
-  const uid = payload.uniqueId || 'tester_vip';
-  const name = payload.nickname || 'Tester Bạn Thân';
-
-  if (payload.action === 'spawn') {
-    store.addSocial({
-      type: 'join',
-      uniqueId: uid,
-      nickname: name,
-    });
-  } else if (payload.action === 'chat') {
-    store.addChat({
-      uniqueId: uid,
-      nickname: name,
-      comment: payload.comment || 'Bé cưng ăn ngon mau lớn nha! 🐾✨',
-    });
-  } else if (payload.action === 'like') {
-    store.addLikes(payload.likeCount || 10, undefined, {
-      uniqueId: uid,
-      nickname: name,
-    });
-  } else if (payload.action === 'gift') {
-    const diamonds = payload.diamondCount || 30;
-    const gName = payload.giftName || 'Doughnut';
-    store.addGift({
-      uniqueId: uid,
-      nickname: name,
-      giftId: 9999,
-      giftName: gName,
-      diamondCount: diamonds,
-      repeatCount: 1,
-      repeatEnd: true,
-      giftType: 0,
-    });
+app.post('/api/disconnect', (req, res) => {
+  const { uniqueId } = req.body || {};
+  const session = sessionManager.getSession(uniqueId || 'demo');
+  if (session) {
+    session.service.disconnect();
+    res.json({ success: true, snapshot: session.store.getSnapshot() });
+  } else {
+    res.json({ success: true });
   }
-}
+});
 
 app.post('/api/pet/interact', (req, res) => {
   const payload = req.body || {};
-  handlePetInteract(payload);
-  io.emit('metrics:snapshot', store.getSnapshot());
-  res.json({ success: true, snapshot: store.getSnapshot() });
+  const targetUsername = payload.streamUsername || payload.uniqueId || 'demo';
+  sessionManager.handlePetInteract(targetUsername, payload);
+  const session = sessionManager.getSession(targetUsername);
+  res.json({ success: true, snapshot: session?.store.getSnapshot() });
 });
 
-app.post('/api/reset', (_req, res) => {
-  tiktokService.disconnect();
-  store.reset();
-  io.emit('metrics:snapshot', store.getSnapshot());
-  res.json({ success: true, snapshot: store.getSnapshot() });
+app.post('/api/reset', (req, res) => {
+  const { uniqueId } = req.body || {};
+  const session = sessionManager.getSession(uniqueId || 'demo');
+  if (session) {
+    session.service.disconnect();
+    session.store.reset();
+    res.json({ success: true, snapshot: session.store.getSnapshot() });
+  } else {
+    res.json({ success: true });
+  }
 });
 
-// Socket.IO event handling
+// Socket.IO Multi-Tenant Event Handling
 io.on('connection', (socket) => {
-  // Immediately send the latest snapshot upon connection
-  socket.emit('metrics:snapshot', store.getSnapshot());
+  // If socket connected with a query param (e.g. io('/', { query: { username: 'huyga.official' } }))
+  const handshakeUsername = socket.handshake.query?.username as string | undefined;
+  if (handshakeUsername) {
+    const session = sessionManager.joinSession(socket, handshakeUsername);
+    if (session.store.getStatus() === 'IDLE') {
+      const clean = normalizeUniqueId(handshakeUsername);
+      if (clean === 'demo') {
+        session.service.startSimulation('demo');
+      } else {
+        session.service.connect({ uniqueId: clean }).catch((err) => {
+          socket.emit('stream:error', { message: err?.message || 'Failed to auto-connect' });
+        });
+      }
+    }
+  }
 
+  // Explicit Join Stream Room
+  socket.on('stream:join', async (payload?: { uniqueId?: string; autoConnect?: boolean }) => {
+    const targetId = payload?.uniqueId || socket.data.uniqueId || 'demo';
+    const session = sessionManager.joinSession(socket, targetId);
+
+    if (payload?.autoConnect && session.store.getStatus() === 'IDLE') {
+      const clean = normalizeUniqueId(targetId);
+      if (clean === 'demo') {
+        session.service.startSimulation('demo');
+      } else {
+        session.service.connect({ uniqueId: clean }).catch((err) => {
+          socket.emit('stream:error', { message: err?.message || 'Failed to auto-connect' });
+        });
+      }
+    }
+  });
+
+  // Connect to live stream
   socket.on('stream:connect', async (payload: ConnectPayload) => {
+    if (!payload?.uniqueId) return;
     try {
-      await tiktokService.connect(payload);
-      io.emit('metrics:snapshot', store.getSnapshot());
+      const session = sessionManager.joinSession(socket, payload.uniqueId);
+      await session.service.connect(payload);
     } catch (err: any) {
       socket.emit('stream:error', { message: err?.message || 'Failed to connect' });
     }
   });
 
+  // Start demo simulation
   socket.on('stream:simulate', (payload?: { uniqueId?: string }) => {
-    tiktokService.startSimulation(payload?.uniqueId);
-    io.emit('metrics:snapshot', store.getSnapshot());
+    const targetId = payload?.uniqueId || socket.data.uniqueId || 'demo';
+    const session = sessionManager.joinSession(socket, targetId);
+    session.service.startSimulation(session.uniqueId);
   });
 
-  socket.on('stream:disconnect', () => {
-    tiktokService.disconnect();
-    io.emit('metrics:snapshot', store.getSnapshot());
+  // Disconnect from stream
+  socket.on('stream:disconnect', (payload?: { uniqueId?: string }) => {
+    const targetId = payload?.uniqueId || socket.data.uniqueId;
+    const session = sessionManager.getSession(targetId);
+    if (session) {
+      session.service.disconnect();
+    }
   });
 
+  // Pet interactive actions
   socket.on('pet:interact', (payload?: any) => {
-    handlePetInteract(payload || {});
-    io.emit('metrics:snapshot', store.getSnapshot());
+    const targetId = payload?.streamUsername || socket.data.uniqueId || 'demo';
+    sessionManager.handlePetInteract(targetId, payload || {});
   });
 
-  socket.on('stream:reset', () => {
-    tiktokService.disconnect();
-    store.reset();
-    io.emit('metrics:snapshot', store.getSnapshot());
+  // Reset session
+  socket.on('stream:reset', (payload?: { uniqueId?: string }) => {
+    const targetId = payload?.uniqueId || socket.data.uniqueId;
+    const session = sessionManager.getSession(targetId);
+    if (session) {
+      session.service.disconnect();
+      session.store.reset();
+    }
+  });
+
+  // Cleanup on client disconnect
+  socket.on('disconnect', () => {
+    sessionManager.leaveSession(socket);
   });
 });
 
@@ -200,5 +195,5 @@ if (fs.existsSync(frontendDistPath)) {
 }
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`TikTok LIVE Analytics Backend running on port ${PORT}`);
+  console.log(`TikTok LIVE Analytics Multi-Tenant Backend running on port ${PORT}`);
 });
