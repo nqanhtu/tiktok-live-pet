@@ -1,6 +1,16 @@
-// Web Audio API procedural sound effects for all 6 pet species
+// Web Audio API procedural sound effects for all 10 pet species
 
-export type PetSpeciesId = 'bunny' | 'dog' | 'cat' | 'tiger' | 'lion' | 'leopard';
+export type PetSpeciesId =
+  | 'bunny'
+  | 'dog'
+  | 'cat'
+  | 'tiger'
+  | 'lion'
+  | 'leopard'
+  | 'dragon'
+  | 'fox'
+  | 'panda'
+  | 'unicorn';
 
 class SoundEngine {
   private ctx: AudioContext | null = null;
@@ -115,6 +125,74 @@ class SoundEngine {
       gain.connect(ctx.destination);
       osc.start(now);
       osc.stop(now + 0.22);
+      return;
+    }
+
+    if (species === 'dragon') {
+      // Mythic resonant dragon harmonic roar-chime
+      [261.63, 392.0, 523.25].forEach((freq, i) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = i === 0 ? 'sawtooth' : 'triangle';
+        o.frequency.setValueAtTime(freq, now + i * 0.05);
+        o.frequency.exponentialRampToValueAtTime(freq * 1.35, now + i * 0.05 + 0.22);
+        g.gain.setValueAtTime(0.09, now + i * 0.05);
+        g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.05 + 0.25);
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.start(now + i * 0.05);
+        o.stop(now + i * 0.05 + 0.25);
+      });
+      return;
+    }
+
+    if (species === 'fox') {
+      // Playful kitsune yip-chime
+      [587.33, 880].forEach((freq, i) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(freq, now + i * 0.08);
+        o.frequency.exponentialRampToValueAtTime(freq * 1.25, now + i * 0.08 + 0.12);
+        g.gain.setValueAtTime(0.1, now + i * 0.08);
+        g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.14);
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.start(now + i * 0.08);
+        o.stop(now + i * 0.08 + 0.14);
+      });
+      return;
+    }
+
+    if (species === 'panda') {
+      // Jolly bamboo munch-boing
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(290, now);
+      osc.frequency.exponentialRampToValueAtTime(460, now + 0.15);
+      osc.frequency.exponentialRampToValueAtTime(350, now + 0.24);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.26);
+      return;
+    }
+
+    if (species === 'unicorn') {
+      // Sparkling celestial harp glissando
+      [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((freq, i) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(freq, now + i * 0.045);
+        g.gain.setValueAtTime(0.09, now + i * 0.045);
+        g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.045 + 0.22);
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.start(now + i * 0.045);
+        o.stop(now + i * 0.045 + 0.22);
+      });
       return;
     }
 

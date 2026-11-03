@@ -673,6 +673,80 @@ export const CuteBunnyArt: React.FC<CuteBunnyArtProps> = ({
               <circle cx="233" cy="194" r="2.6" fill={patternColor} />
             </g>
           )}
+
+          {species === 'dragon' && (
+            <g>
+              <path
+                d="M188 242C226 244 246 218 238 186"
+                stroke="#334155"
+                strokeWidth="18"
+                strokeLinecap="round"
+              />
+              <path
+                d="M188 242C226 244 246 218 238 186"
+                stroke={colors.bodySecondary}
+                strokeWidth="13"
+                strokeLinecap="round"
+              />
+              {/* Dorsal dragon tail spikes */}
+              <polygon points="212,232 222,226 218,238" fill={colors.earInner} stroke="#334155" strokeWidth="1.8" />
+              <polygon points="228,216 240,210 234,222" fill={colors.earInner} stroke="#334155" strokeWidth="1.8" />
+              {/* Flame / Gem tail tip */}
+              <path
+                d="M238 186C228 174 232 154 244 148C254 158 256 176 238 186Z"
+                fill={`url(#fireGrad-${uid})`}
+                stroke="#991B1B"
+                strokeWidth="2.4"
+              />
+            </g>
+          )}
+
+          {species === 'fox' && gear.back !== 'nine_tails' && (
+            <g>
+              <path
+                d="M186 244C224 248 254 218 244 176C236 154 206 172 198 206Z"
+                fill={colors.bodySecondary}
+                stroke="#334155"
+                strokeWidth="3.2"
+                strokeLinejoin="round"
+              />
+              {/* Fluffy white kitsune tail tip */}
+              <path
+                d="M244 176C238 158 218 164 212 184C224 188 236 186 244 176Z"
+                fill="#FFFFFF"
+                fillOpacity="0.92"
+              />
+            </g>
+          )}
+
+          {species === 'panda' && (
+            <circle
+              cx="198"
+              cy="240"
+              r="14"
+              fill="#1E293B"
+              stroke="#0F172A"
+              strokeWidth="3"
+            />
+          )}
+
+          {species === 'unicorn' && (
+            <g>
+              <path
+                d="M188 238C224 244 248 218 242 182C236 196 220 202 204 214Z"
+                fill={`url(#cosmicGrad-${uid})`}
+                stroke="#334155"
+                strokeWidth="2.8"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M192 244C222 248 242 228 246 198"
+                stroke="#FDE047"
+                strokeWidth="4"
+                strokeLinecap="round"
+              />
+            </g>
+          )}
         </g>
 
         {/* ==================== 4. LION MANE (DYNAMIC COLOR PER EVOLUTION) ==================== */}
@@ -920,6 +994,189 @@ export const CuteBunnyArt: React.FC<CuteBunnyArtProps> = ({
           </>
         )}
 
+        {species === 'panda' && (
+          <>
+            <g
+              className="animate-ear-left"
+              style={{ transformOrigin: '90px 104px' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClickBunny?.('head', e);
+              }}
+            >
+              <circle
+                cx="84"
+                cy="92"
+                r="25"
+                fill="#1E293B"
+                stroke="#0F172A"
+                strokeWidth="3.2"
+              />
+              <circle cx="84" cy="92" r="11" fill="#475569" fillOpacity="0.65" />
+            </g>
+            <g
+              className="animate-ear-right"
+              style={{ transformOrigin: '190px 104px' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClickBunny?.('head', e);
+              }}
+            >
+              <circle
+                cx="196"
+                cy="92"
+                r="25"
+                fill="#1E293B"
+                stroke="#0F172A"
+                strokeWidth="3.2"
+              />
+              <circle cx="196" cy="92" r="11" fill="#475569" fillOpacity="0.65" />
+            </g>
+          </>
+        )}
+
+        {species === 'fox' && (
+          <>
+            <g
+              className="animate-ear-left"
+              style={{ transformOrigin: '96px 110px' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClickBunny?.('head', e);
+              }}
+            >
+              <path
+                d="M74 128L52 44L124 96Z"
+                fill={`url(#bodyGrad-${uid})`}
+                stroke="#334155"
+                strokeWidth="3.2"
+                strokeLinejoin="round"
+              />
+              <path d="M52 44L62 72L82 66Z" fill={patternColor} />
+              <path d="M82 118L66 64L114 96Z" fill={colors.earInner} fillOpacity="0.88" />
+            </g>
+            <g
+              className="animate-ear-right"
+              style={{ transformOrigin: '184px 110px' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClickBunny?.('head', e);
+              }}
+            >
+              <path
+                d="M206 128L228 44L156 96Z"
+                fill={`url(#bodyGrad-${uid})`}
+                stroke="#334155"
+                strokeWidth="3.2"
+                strokeLinejoin="round"
+              />
+              <path d="M228 44L218 72L198 66Z" fill={patternColor} />
+              <path d="M198 118L214 64L166 96Z" fill={colors.earInner} fillOpacity="0.88" />
+            </g>
+          </>
+        )}
+
+        {species === 'dragon' && (
+          <>
+            {/* Dragon Fin Ears + Curved Horns */}
+            <g
+              className="animate-ear-left"
+              style={{ transformOrigin: '88px 118px' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClickBunny?.('head', e);
+              }}
+            >
+              {/* Fin ear */}
+              <path
+                d="M80 132C52 118 44 94 58 84C72 90 80 104 90 114Z"
+                fill={colors.earInner}
+                stroke="#334155"
+                strokeWidth="2.8"
+                strokeLinejoin="round"
+              />
+              {/* Curved Coral/Gold Dragon Horn */}
+              <path
+                d="M110 98C96 72 82 48 94 34C106 46 116 68 124 94Z"
+                fill={`url(#goldGrad-${uid})`}
+                stroke="#92400E"
+                strokeWidth="2.8"
+                strokeLinejoin="round"
+              />
+            </g>
+            <g
+              className="animate-ear-right"
+              style={{ transformOrigin: '192px 118px' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClickBunny?.('head', e);
+              }}
+            >
+              {/* Fin ear */}
+              <path
+                d="M200 132C228 118 236 94 222 84C208 90 200 104 190 114Z"
+                fill={colors.earInner}
+                stroke="#334155"
+                strokeWidth="2.8"
+                strokeLinejoin="round"
+              />
+              {/* Curved Coral/Gold Dragon Horn */}
+              <path
+                d="M170 98C184 72 198 48 186 34C174 46 164 68 156 94Z"
+                fill={`url(#goldGrad-${uid})`}
+                stroke="#92400E"
+                strokeWidth="2.8"
+                strokeLinejoin="round"
+              />
+            </g>
+          </>
+        )}
+
+        {species === 'unicorn' && (
+          <>
+            <g
+              className="animate-ear-left"
+              style={{ transformOrigin: '96px 110px' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClickBunny?.('head', e);
+              }}
+            >
+              <path
+                d="M86 118C68 96 64 64 80 56C96 64 108 88 114 104Z"
+                fill={`url(#bodyGrad-${uid})`}
+                stroke="#334155"
+                strokeWidth="3"
+              />
+              <path
+                d="M90 112C78 96 76 74 84 68C94 74 102 92 106 102Z"
+                fill={colors.earInner}
+                fillOpacity="0.82"
+              />
+            </g>
+            <g
+              className="animate-ear-right"
+              style={{ transformOrigin: '184px 110px' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClickBunny?.('head', e);
+              }}
+            >
+              <path
+                d="M194 118C212 96 216 64 200 56C184 64 172 88 166 104Z"
+                fill={`url(#bodyGrad-${uid})`}
+                stroke="#334155"
+                strokeWidth="3"
+              />
+              <path
+                d="M190 112C202 96 204 74 196 68C186 74 178 92 174 102Z"
+                fill={colors.earInner}
+                fillOpacity="0.82"
+              />
+            </g>
+          </>
+        )}
+
         {/* ==================== 6. LOWER CHUBBY BODY (BELLY ZONE) ==================== */}
         <g
           onClick={(e) => {
@@ -960,6 +1217,31 @@ export const CuteBunnyArt: React.FC<CuteBunnyArtProps> = ({
           )}
 
           <ellipse cx="140" cy="226" rx="34" ry="28" fill="#FFFFFF" fillOpacity="0.82" />
+
+          {species === 'dragon' && (
+            <g>
+              <path d="M114 212Q140 218 166 212" stroke={colors.earInner} strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M110 226Q140 232 170 226" stroke={colors.earInner} strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M116 240Q140 246 164 240" stroke={colors.earInner} strokeWidth="2.5" strokeLinecap="round" />
+            </g>
+          )}
+
+          {species === 'panda' && (
+            <path
+              d="M86 196Q140 212 194 196C192 182 172 174 140 174C108 174 88 182 86 196Z"
+              fill="#1E293B"
+              fillOpacity="0.9"
+            />
+          )}
+
+          {species === 'unicorn' && (
+            <polygon
+              points="178,226 181,233 188,233 182,237 184,244 178,240 172,244 174,237 168,233 175,233"
+              fill="#F472B6"
+              stroke="#FEF08A"
+              strokeWidth="1.2"
+            />
+          )}
         </g>
 
         {/* FEET / HIND PAWS */}
@@ -974,7 +1256,7 @@ export const CuteBunnyArt: React.FC<CuteBunnyArtProps> = ({
             cy="265"
             rx="22"
             ry="12"
-            fill={colors.bodyPrimary}
+            fill={species === 'panda' ? '#1E293B' : colors.bodyPrimary}
             stroke="#334155"
             strokeWidth="3"
           />
@@ -985,7 +1267,7 @@ export const CuteBunnyArt: React.FC<CuteBunnyArtProps> = ({
             cy="265"
             rx="22"
             ry="12"
-            fill={colors.bodyPrimary}
+            fill={species === 'panda' ? '#1E293B' : colors.bodyPrimary}
             stroke="#334155"
             strokeWidth="3"
           />
@@ -1073,6 +1355,96 @@ export const CuteBunnyArt: React.FC<CuteBunnyArtProps> = ({
             </g>
           )}
 
+          {species === 'dragon' && (
+            <g>
+              {/* Forehead Dragon Scale Gem */}
+              <polygon
+                points="140,100 148,112 140,124 132,112"
+                fill={colors.earInner}
+                stroke={patternColor}
+                strokeWidth="2"
+              />
+              {/* Cute Dragon Whiskers */}
+              <path
+                d="M90 156C72 148 56 156 50 146"
+                stroke={colors.earInner}
+                strokeWidth="3"
+                strokeLinecap="round"
+                fill="none"
+              />
+              <path
+                d="M190 156C208 148 224 156 230 146"
+                stroke={colors.earInner}
+                strokeWidth="3"
+                strokeLinecap="round"
+                fill="none"
+              />
+            </g>
+          )}
+
+          {species === 'fox' && (
+            <g>
+              {/* White cheek fur mask */}
+              <path
+                d="M76 158C92 148 116 164 140 164C164 164 188 148 204 158C200 184 180 198 140 198C100 198 80 184 76 158Z"
+                fill="#FFFFFF"
+                fillOpacity="0.88"
+              />
+              {/* Kitsune forehead flame mark */}
+              <path
+                d="M140 100C146 110 146 120 140 126C134 120 134 110 140 100Z"
+                fill="#E11D48"
+                stroke="#FEF08A"
+                strokeWidth="1.5"
+              />
+            </g>
+          )}
+
+          {species === 'panda' && (
+            <g>
+              {/* Iconic Panda Black Eye Patches */}
+              <ellipse
+                cx="110"
+                cy="146"
+                rx="19"
+                ry="16"
+                transform="rotate(-18 110 146)"
+                fill="#1E293B"
+              />
+              <ellipse
+                cx="170"
+                cy="146"
+                rx="19"
+                ry="16"
+                transform="rotate(18 170 146)"
+                fill="#1E293B"
+              />
+            </g>
+          )}
+
+          {species === 'unicorn' && (
+            <g>
+              {/* Pastel Rainbow Forelock Curls */}
+              <path
+                d="M118 96C112 112 126 122 138 114C148 124 166 112 162 96"
+                fill={`url(#cosmicGrad-${uid})`}
+                stroke="#334155"
+                strokeWidth="2.4"
+              />
+              {/* Radiant Spiraling Unicorn Horn */}
+              <polygon
+                points="130,96 140,34 150,96"
+                fill={`url(#goldGrad-${uid})`}
+                stroke="#B45309"
+                strokeWidth="2.6"
+                strokeLinejoin="round"
+              />
+              <line x1="133" y1="82" x2="147" y2="76" stroke="#FEF9C3" strokeWidth="2.5" strokeLinecap="round" />
+              <line x1="135" y1="66" x2="145" y2="60" stroke="#FEF9C3" strokeWidth="2.5" strokeLinecap="round" />
+              <circle cx="140" cy="32" r="4.5" fill="#FEF08A" />
+            </g>
+          )}
+
           <ellipse
             cx="96"
             cy="162"
@@ -1093,26 +1465,26 @@ export const CuteBunnyArt: React.FC<CuteBunnyArtProps> = ({
           {/* EYES */}
           {isSleeping ? (
             <g>
-              <path d="M102 146Q112 154 122 146" stroke="#334155" strokeWidth="3.2" strokeLinecap="round" />
-              <path d="M158 146Q168 154 178 146" stroke="#334155" strokeWidth="3.2" strokeLinecap="round" />
+              <path d="M102 146Q112 154 122 146" stroke={species === 'panda' ? '#FFFFFF' : '#334155'} strokeWidth="3.2" strokeLinecap="round" />
+              <path d="M158 146Q168 154 178 146" stroke={species === 'panda' ? '#FFFFFF' : '#334155'} strokeWidth="3.2" strokeLinecap="round" />
             </g>
           ) : isHappyEyes ? (
             <g>
-              <path d="M102 149Q112 135 122 149" stroke="#334155" strokeWidth="3.5" strokeLinecap="round" />
-              <path d="M158 149Q168 135 178 149" stroke="#334155" strokeWidth="3.5" strokeLinecap="round" />
+              <path d="M102 149Q112 135 122 149" stroke={species === 'panda' ? '#FFFFFF' : '#334155'} strokeWidth="3.5" strokeLinecap="round" />
+              <path d="M158 149Q168 135 178 149" stroke={species === 'panda' ? '#FFFFFF' : '#334155'} strokeWidth="3.5" strokeLinecap="round" />
             </g>
           ) : isBlinking ? (
             <g>
-              <line x1="102" y1="146" x2="122" y2="146" stroke="#334155" strokeWidth="3.2" strokeLinecap="round" />
-              <line x1="158" y1="146" x2="178" y2="146" stroke="#334155" strokeWidth="3.2" strokeLinecap="round" />
+              <line x1="102" y1="146" x2="122" y2="146" stroke={species === 'panda' ? '#FFFFFF' : '#334155'} strokeWidth="3.2" strokeLinecap="round" />
+              <line x1="158" y1="146" x2="178" y2="146" stroke={species === 'panda' ? '#FFFFFF' : '#334155'} strokeWidth="3.2" strokeLinecap="round" />
             </g>
           ) : (
             <g>
-              <ellipse cx={112 + pupilX} cy={145 + pupilY} rx="9.5" ry="11" fill={colors.eyeColor} />
+              <ellipse cx={112 + pupilX} cy={145 + pupilY} rx="9.5" ry="11" fill={colors.eyeColor} stroke={species === 'panda' ? '#FFFFFF' : 'none'} strokeWidth={species === 'panda' ? '2' : '0'} />
               <circle cx={109 + pupilX} cy={141 + pupilY} r="3.8" fill="#FFFFFF" />
               <circle cx={115 + pupilX} cy={149 + pupilY} r="1.8" fill="#FFFFFF" />
 
-              <ellipse cx={168 + pupilX} cy={145 + pupilY} rx="9.5" ry="11" fill={colors.eyeColor} />
+              <ellipse cx={168 + pupilX} cy={145 + pupilY} rx="9.5" ry="11" fill={colors.eyeColor} stroke={species === 'panda' ? '#FFFFFF' : 'none'} strokeWidth={species === 'panda' ? '2' : '0'} />
               <circle cx={165 + pupilX} cy={141 + pupilY} r="3.8" fill="#FFFFFF" />
               <circle cx={171 + pupilX} cy={149 + pupilY} r="1.8" fill="#FFFFFF" />
             </g>
@@ -1681,7 +2053,7 @@ export const CuteBunnyArt: React.FC<CuteBunnyArtProps> = ({
                 rx="13"
                 ry="10"
                 transform="rotate(-25 120 182)"
-                fill={colors.bodyPrimary}
+                fill={species === 'panda' ? '#1E293B' : colors.bodyPrimary}
                 stroke="#334155"
                 strokeWidth="3"
               />
@@ -1691,7 +2063,7 @@ export const CuteBunnyArt: React.FC<CuteBunnyArtProps> = ({
                 rx="13"
                 ry="10"
                 transform="rotate(25 160 182)"
-                fill={colors.bodyPrimary}
+                fill={species === 'panda' ? '#1E293B' : colors.bodyPrimary}
                 stroke="#334155"
                 strokeWidth="3"
               />
@@ -1704,7 +2076,7 @@ export const CuteBunnyArt: React.FC<CuteBunnyArtProps> = ({
                 rx="13"
                 ry="16"
                 transform="rotate(-15 108 208)"
-                fill={colors.bodyPrimary}
+                fill={species === 'panda' ? '#1E293B' : colors.bodyPrimary}
                 stroke="#334155"
                 strokeWidth="3"
               />
@@ -1714,7 +2086,7 @@ export const CuteBunnyArt: React.FC<CuteBunnyArtProps> = ({
                 rx="13"
                 ry="16"
                 transform="rotate(15 172 208)"
-                fill={colors.bodyPrimary}
+                fill={species === 'panda' ? '#1E293B' : colors.bodyPrimary}
                 stroke="#334155"
                 strokeWidth="3"
               />

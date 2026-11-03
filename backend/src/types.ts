@@ -1,6 +1,16 @@
 export type ConnectionStatus = 'IDLE' | 'CONNECTING' | 'LIVE' | 'SIMULATING' | 'ENDED' | 'ERROR';
 
-export type PetSpeciesId = 'bunny' | 'dog' | 'cat' | 'tiger' | 'lion' | 'leopard';
+export type PetSpeciesId =
+  | 'bunny'
+  | 'dog'
+  | 'cat'
+  | 'tiger'
+  | 'lion'
+  | 'leopard'
+  | 'dragon'
+  | 'fox'
+  | 'panda'
+  | 'unicorn';
 
 export type PetActionState =
   | 'idle'

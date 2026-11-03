@@ -20,7 +20,12 @@ import {
 } from 'lucide-react';
 import { ViewerPetState, PetEvolutionEvent, PetSpeciesId } from '../../types';
 import { PetInteractPayload } from '../../hooks/useTikTokLive';
-import { getStageForSpeciesLevel, SPECIES_CONFIGS } from '../../data/bunnyData';
+import {
+  getStageForSpeciesLevel,
+  SPECIES_CONFIGS,
+  SPECIES_GAMIFICATION_META,
+  SPECIES_ORDER,
+} from '../../data/bunnyData';
 import { CuteBunnyArt } from './CuteBunnyArt';
 import { FoodSvgIcon } from './FoodSvgIcon';
 import { soundEngine } from '../../utils/sound';
@@ -61,6 +66,8 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
   const [soundEnabled, setSoundEnabled] = useState<boolean>(soundEngine.enabled);
   const [showControls, setShowControls] = useState<boolean>(true);
   const [selectedPet, setSelectedPet] = useState<ViewerPetState | null>(null);
+  const [showCompendium, setShowCompendium] = useState<boolean>(false);
+  const [compendiumSpecies, setCompendiumSpecies] = useState<PetSpeciesId>('dragon');
   const [now, setNow] = useState<number>(Date.now());
   const [walkStates, setWalkStates] = useState<Record<string, PetWalkState>>({});
   const lastEvoIdRef = useRef<string | null>(null);
@@ -228,6 +235,40 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
     soundEngine.playLevelUpSound();
   };
 
+  const handleTestGacha = () => {
+    const targetPet = activePets[0];
+    onTestPetInteract?.({
+      action: 'chat',
+      uniqueId: targetPet?.uniqueId || 'viewer_vip',
+      nickname: targetPet?.nickname || 'Khán Giả VIP',
+      comment: '!gacha',
+    });
+    soundEngine.playEvolutionSound();
+  };
+
+  const handleSummonSpecies = (speciesId: PetSpeciesId) => {
+    const meta = SPECIES_GAMIFICATION_META[speciesId];
+    const randomId = Math.floor(100 + Math.random() * 900);
+    onTestPetInteract?.({
+      action: 'chat',
+      uniqueId: `summoner_${speciesId}_${randomId}`,
+      nickname: `${meta.emoji} Luyện Thú Sư ${randomId}`,
+      comment: meta.chatCmd,
+    });
+    soundEngine.playPetSound(speciesId);
+  };
+
+  // Community Energy / Fever Boss Bar calculation
+  const totalRoomPower = activePets.reduce(
+    (sum, p) => sum + (p.totalDiamonds || 0) * 8 + (p.totalLikes || 0) + (p.totalComments || 0) * 15 + p.level * 25,
+    0
+  );
+  const feverCycle = 500;
+  const currentFeverPoints = totalRoomPower % feverCycle;
+  const feverTier = Math.floor(totalRoomPower / feverCycle) + 1;
+  const feverPct = Math.min(100, Math.round((currentFeverPoints / feverCycle) * 100));
+  const isFeverActive = feverPct >= 80 || (activeEvolution !== undefined);
+
   // Background styling logic
   const getBackgroundClass = () => {
     switch (bgMode) {
@@ -286,7 +327,7 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
                 </span>
               </div>
               <p className="text-[10px] text-gray-400 hidden sm:block">
-                Hệ thống 6 loài thú × 6 bậc tiến hóa tương tác realtime cùng khán giả
+                Hệ thống 10 Tộc Thần Thú × 6 Bậc Tiến Hóa (60 Hình Thái) · Hỗ trợ Gacha & Lệnh Chat (`!dragon`, `!unicorn`, `!fox`, `!panda`, `!gacha`)
               </p>
             </div>
           </div>
@@ -399,6 +440,16 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
               </div>
             )}
 
+            {/* Compendium Button (60 Forms Pokédex) */}
+            <button
+              type="button"
+              onClick={() => setShowCompendium(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-rose-500/20 to-purple-600/20 border border-amber-400/40 text-amber-300 hover:text-white hover:border-amber-300 font-bold text-[11px] shadow-sm transition"
+            >
+              <Crown className="w-3.5 h-3.5 text-amber-400" />
+              <span>📖 Bách Khoa 60 Thú</span>
+            </button>
+
             {/* Sound Toggle */}
             <button
               type="button"
@@ -492,6 +543,47 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
               >
                 <Gift className="w-3 h-3" />
                 <span>🎁 Tặng Quà Cấp Cao</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTestGacha}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30 font-bold active:scale-95 transition"
+              >
+                <Sparkles className="w-3 h-3" />
+                <span>🎲 Gacha Đổi Thú (!gacha)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSummonSpecies('dragon')}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30 font-bold active:scale-95 transition"
+              >
+                <span>🐉 +Thần Long UR</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSummonSpecies('unicorn')}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/30 font-bold active:scale-95 transition"
+              >
+                <span>🦄 +Kỳ Lân UR</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSummonSpecies('fox')}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-pink-500/20 text-pink-300 border border-pink-500/30 hover:bg-pink-500/30 font-bold active:scale-95 transition"
+              >
+                <span>🦊 +Hồ Ly SSR</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSummonSpecies('panda')}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-500/20 text-teal-300 border border-teal-500/30 hover:bg-teal-500/30 font-bold active:scale-95 transition"
+              >
+                <span>🐼 +Gấu Trúc SSR</span>
               </button>
             </div>
           </div>
@@ -614,18 +706,51 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
           </div>
         )}
 
+        {/* Top-Center: Community Energy / Fever Boss Bar */}
+        {bgMode !== 'chroma' && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 w-[230px] sm:w-[290px] pointer-events-none">
+            <div
+              className={`px-3 py-1.5 rounded-2xl backdrop-blur-md border shadow-xl transition-all duration-500 ${
+                isFeverActive
+                  ? 'bg-gradient-to-r from-amber-600/80 via-rose-600/80 to-purple-700/80 border-yellow-300 shadow-[0_0_25px_rgba(251,191,36,0.5)]'
+                  : 'bg-black/65 border-white/15'
+              }`}
+            >
+              <div className="flex items-center justify-between text-[10px] font-extrabold text-white mb-1">
+                <span className="flex items-center gap-1">
+                  <Zap className={`w-3 h-3 ${isFeverActive ? 'text-yellow-300 animate-bounce' : 'text-amber-400'}`} />
+                  {isFeverActive ? '🔥 ĐẠI TIỆC LINH KHÍ (FEVER)!' : `⚡ Tụ Linh Đàn · Tầng ${feverTier}`}
+                </span>
+                <span className="font-mono text-[9px] text-amber-200">
+                  {currentFeverPoints}/{feverCycle}
+                </span>
+              </div>
+              <div className="w-full h-2 bg-black/60 rounded-full overflow-hidden border border-white/20">
+                <div
+                  className={`h-full transition-all duration-500 ${
+                    isFeverActive
+                      ? 'bg-gradient-to-r from-yellow-300 via-rose-400 to-cyan-300 animate-pulse'
+                      : 'bg-gradient-to-r from-amber-400 via-rose-500 to-tiktok-cyan'
+                  }`}
+                  style={{ width: `${Math.max(8, feverPct)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Top-Right: Quick Livestream Interactive Guide */}
         {bgMode !== 'chroma' && (
-          <div className="absolute top-3 right-3 z-30 max-w-[240px] pointer-events-none hidden sm:block">
+          <div className="absolute top-3 right-3 z-30 max-w-[245px] pointer-events-none hidden lg:block">
             <div className="p-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/15 text-white shadow-lg text-[10px] leading-relaxed">
               <div className="flex items-center gap-1 font-bold text-tiktok-cyan mb-0.5">
                 <HelpCircle className="w-3 h-3" />
-                <span>Cách Tham Gia Nuôi Thú</span>
+                <span>Lệnh Chat & Nuôi Thần Thú</span>
               </div>
               <p className="text-gray-300">
-                🐾 <strong>Vào phòng</strong> = Random Thú<br />
-                💬 <strong>Chat</strong> = Hiện bong bóng thoại<br />
-                ❤️ <strong>Thả tim & 🎁 Tặng quà</strong> = Tăng EXP tiến hóa 36 hình thái!
+                🎲 Chat <strong>!gacha</strong> = Quay Thú Mới<br />
+                🐉 Chat <strong>!dragon !unicorn !fox !panda</strong> = Đổi Tộc<br />
+                ❤️ <strong>Tim & 🎁 Quà</strong> = Tiến Hóa 60 Hình Thái!
               </p>
             </div>
           </div>
@@ -765,9 +890,19 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
                   />
                 </div>
 
-                {/* 4. Viewer Nameplate & Level Bar under Pet */}
+                {/* 4. Viewer Nameplate, Rarity Badge & Level Bar under Pet */}
                 <div className="mt-[-4px] flex flex-col items-center pointer-events-none">
-                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-sm border border-white/20 text-white shadow-md">
+                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/80 backdrop-blur-sm border border-white/25 text-white shadow-md">
+                    {topPets[0]?.uniqueId === pet.uniqueId && (
+                      <span className="text-[10px]" title="Top 1 Thần Thú">👑</span>
+                    )}
+                    {SPECIES_GAMIFICATION_META[pet.species] && (
+                      <span
+                        className={`px-1 rounded text-[7px] font-black tracking-tighter text-white bg-gradient-to-r ${SPECIES_GAMIFICATION_META[pet.species].badgeBg}`}
+                      >
+                        {SPECIES_GAMIFICATION_META[pet.species].rarityTier}
+                      </span>
+                    )}
                     {pet.avatarUrl ? (
                       <img
                         src={pet.avatarUrl}
@@ -925,6 +1060,139 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
               >
                 Đóng
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          Bách Khoa Toàn Thư 10 Tộc Thú (60 Hình Thái Tiến Hóa) Modal
+          ========================================================================= */}
+      {showCompendium && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md animate-in fade-in">
+          <div className="bg-[#12141f] border border-white/15 rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-left">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-white/[0.02]">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Crown className="w-5 h-5 text-amber-400" />
+                  <h3 className="text-base sm:text-lg font-black text-white">
+                    Bách Khoa Toàn Thư 10 Tộc Thần Thú · 60 Hình Thái Tiến Hóa
+                  </h3>
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Khán giả trên TikTok Live có thể gõ lệnh chat (VD: <code className="text-amber-300 font-mono">!dragon</code>, <code className="text-cyan-300 font-mono">!unicorn</code>, <code className="text-pink-300 font-mono">!fox</code>, <code className="text-emerald-300 font-mono">!panda</code>, <code className="text-purple-300 font-mono">!gacha</code>) để triệu hồi!
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCompendium(false)}
+                className="p-2 rounded-xl bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Species Tabs */}
+            <div className="px-5 py-3 border-b border-white/10 flex items-center gap-2 overflow-x-auto bg-black/20">
+              {SPECIES_ORDER.map((spId) => {
+                const cfg = SPECIES_CONFIGS[spId];
+                const meta = SPECIES_GAMIFICATION_META[spId];
+                const isSelected = compendiumSpecies === spId;
+                return (
+                  <button
+                    key={spId}
+                    type="button"
+                    onClick={() => {
+                      setCompendiumSpecies(spId);
+                      soundEngine.playPetSound(spId);
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 border transition ${
+                      isSelected
+                        ? 'bg-white/15 border-amber-400 text-white shadow-md scale-105'
+                        : 'bg-white/[0.04] border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <span>{meta.emoji}</span>
+                    <span>{cfg.defaultPetName}</span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded text-[9px] font-black text-white bg-gradient-to-r ${meta.badgeBg}`}
+                    >
+                      {meta.rarityTier}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Selected Species Banner + Summon Action */}
+            <div className="px-5 py-3 bg-gradient-to-r from-indigo-950/50 via-purple-950/40 to-rose-950/40 border-b border-white/10 flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm sm:text-base font-black text-white">
+                    {SPECIES_CONFIGS[compendiumSpecies].speciesName}
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-black text-white bg-gradient-to-r ${SPECIES_GAMIFICATION_META[compendiumSpecies].badgeBg}`}
+                  >
+                    Hạng {SPECIES_GAMIFICATION_META[compendiumSpecies].rarityTier} · {SPECIES_GAMIFICATION_META[compendiumSpecies].rarityLabel} ({SPECIES_GAMIFICATION_META[compendiumSpecies].expBonus})
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white/10 text-amber-300 border border-amber-400/30">
+                    Lệnh Chat: {SPECIES_GAMIFICATION_META[compendiumSpecies].chatCmd}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-300 mt-0.5">
+                  {SPECIES_CONFIGS[compendiumSpecies].shortDesc}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  handleSummonSpecies(compendiumSpecies);
+                  setShowCompendium(false);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-amber-400 to-rose-500 text-black shadow-lg hover:brightness-110 active:scale-95 transition"
+              >
+                ⚡ Triệu Hồi {SPECIES_CONFIGS[compendiumSpecies].defaultPetName} Ra Sân Ngay
+              </button>
+            </div>
+
+            {/* 6 Evolution Stages Grid */}
+            <div className="p-5 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {SPECIES_CONFIGS[compendiumSpecies].stages.map((st) => (
+                <div
+                  key={st.id}
+                  onClick={() => soundEngine.playPetSound(compendiumSpecies)}
+                  className="rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-amber-400/40 p-4 flex flex-col items-center text-center cursor-pointer transition group"
+                >
+                  <div className="w-full flex items-center justify-between text-[10px] font-bold text-gray-400 mb-1">
+                    <span className="px-2 py-0.5 rounded-md bg-white/10 text-amber-300 font-mono">
+                      Bậc {st.id} · Lv.{st.minLevel}+
+                    </span>
+                    <span className="text-tiktok-cyan font-mono">
+                      Charm {st.charmBase}
+                    </span>
+                  </div>
+                  <div className="my-1 group-hover:scale-105 transition-transform">
+                    <CuteBunnyArt
+                      customId={`compendium-${compendiumSpecies}-${st.id}`}
+                      species={compendiumSpecies}
+                      stage={st}
+                      actionState="idle"
+                      size="md"
+                    />
+                  </div>
+                  <h4 className="text-sm font-black text-white mt-1">
+                    {st.name}
+                  </h4>
+                  <p className="text-[10px] font-semibold text-amber-300/90 mb-1.5">
+                    {st.visualFeature}
+                  </p>
+                  <p className="text-[11px] text-gray-400 leading-relaxed line-clamp-3">
+                    {st.description}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
         </div>

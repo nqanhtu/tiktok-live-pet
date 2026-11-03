@@ -5,7 +5,57 @@ import {
   PetEvolutionEvent,
 } from './types';
 
-export const SPECIES_LIST: PetSpeciesId[] = ['bunny', 'dog', 'cat', 'tiger', 'lion', 'leopard'];
+export const SPECIES_LIST: PetSpeciesId[] = [
+  'bunny',
+  'dog',
+  'cat',
+  'tiger',
+  'lion',
+  'leopard',
+  'dragon',
+  'fox',
+  'panda',
+  'unicorn',
+];
+
+const SPECIES_EXP_BONUS: Record<PetSpeciesId, number> = {
+  bunny: 1.05,
+  dog: 1.05,
+  cat: 1.1,
+  leopard: 1.1,
+  tiger: 1.2,
+  lion: 1.2,
+  fox: 1.2,
+  panda: 1.2,
+  dragon: 1.35,
+  unicorn: 1.35,
+};
+
+const CHAT_SPECIES_ALIASES: Record<string, PetSpeciesId> = {
+  '!bunny': 'bunny',
+  '!tho': 'bunny',
+  '!dog': 'dog',
+  '!cun': 'dog',
+  '!cho': 'dog',
+  '!cat': 'cat',
+  '!meo': 'cat',
+  '!tiger': 'tiger',
+  '!ho': 'tiger',
+  '!lion': 'lion',
+  '!sutu': 'lion',
+  '!leopard': 'leopard',
+  '!bao': 'leopard',
+  '!dragon': 'dragon',
+  '!rong': 'dragon',
+  '!fox': 'fox',
+  '!cao': 'fox',
+  '!holy': 'fox',
+  '!panda': 'panda',
+  '!gau': 'panda',
+  '!gautruc': 'panda',
+  '!unicorn': 'unicorn',
+  '!kylan': 'unicorn',
+};
 
 interface StageDef {
   stageId: number;
@@ -61,6 +111,38 @@ const STAGE_DEFS: Record<PetSpeciesId, StageDef[]> = {
     { stageId: 4, minLevel: 10, name: 'Hắc Báo Sát Thủ Đốm Neon' },
     { stageId: 5, minLevel: 15, name: 'Báo Tuyết Pha Lê Kim Cương Hồng' },
     { stageId: 6, minLevel: 20, name: 'Thần Báo Cực Quang Đa Chiều' },
+  ],
+  dragon: [
+    { stageId: 1, minLevel: 1, name: 'Rồng Sữa Trứng Ngọc' },
+    { stageId: 2, minLevel: 3, name: 'Tiểu Long Học Giả Cổ Thư' },
+    { stageId: 3, minLevel: 6, name: 'Phong Long Kỵ Sĩ Bầu Trời' },
+    { stageId: 4, minLevel: 10, name: 'Lôi Long Điện Quang Sấm Sét' },
+    { stageId: 5, minLevel: 15, name: 'Hỏa Long Đế Vương Dung Nham' },
+    { stageId: 6, minLevel: 20, name: 'Thiên Long Tinh Tú Ngân Hà' },
+  ],
+  fox: [
+    { stageId: 1, minLevel: 1, name: 'Cáo Đỏ Lá Phong' },
+    { stageId: 2, minLevel: 3, name: 'Hồ Ly Ẩn Sĩ Trúc Lâm' },
+    { stageId: 3, minLevel: 6, name: 'Tiên Hồ Hoa Anh Đào' },
+    { stageId: 4, minLevel: 10, name: 'Nguyệt Hồ Ảo Ảnh Bóng Đêm' },
+    { stageId: 5, minLevel: 15, name: 'Băng Hồ Cực Quang Tuyết Lãnh' },
+    { stageId: 6, minLevel: 20, name: 'Cửu Vĩ Thiên Hồ Thần Thoại' },
+  ],
+  panda: [
+    { stageId: 1, minLevel: 1, name: 'Gấu Trúc Mầm Tre' },
+    { stageId: 2, minLevel: 3, name: 'Gấu Trúc Đầu Bếp Dimsum' },
+    { stageId: 3, minLevel: 6, name: 'Gấu Trúc Võ Sư Thiếu Lâm' },
+    { stageId: 4, minLevel: 10, name: 'Chiến Hùng Cơ Khí Cyber-Panda' },
+    { stageId: 5, minLevel: 15, name: 'Đại Hiệp Gấu Trúc Thái Cực' },
+    { stageId: 6, minLevel: 20, name: 'Thánh Hùng Tiên Giới Bát Quái' },
+  ],
+  unicorn: [
+    { stageId: 1, minLevel: 1, name: 'Kỳ Lân Sữa Kẹo Bông' },
+    { stageId: 2, minLevel: 3, name: 'Kỳ Lân Nhạc Sĩ Cầu Vồng' },
+    { stageId: 3, minLevel: 6, name: 'Thiên Mã Cánh Tiên Pegasus' },
+    { stageId: 4, minLevel: 10, name: 'Kỳ Lân Phù Thủy Sao Băng' },
+    { stageId: 5, minLevel: 15, name: 'Thánh Lộc Pha Lê Vĩnh Cửu' },
+    { stageId: 6, minLevel: 20, name: 'Thần Kỳ Lân Sáng Thế Vũ Trụ' },
   ],
 };
 
@@ -174,6 +256,7 @@ export class PetSanctuaryManager {
   ): { pet: ViewerPetState; evolutionEvent?: PetEvolutionEvent } {
     const pet = this.getOrCreatePet(user);
     const now = Date.now();
+    const cleanCmd = comment.trim().toLowerCase().split(/\s+/)[0];
 
     pet.totalComments++;
     pet.lastChat = {
@@ -182,6 +265,47 @@ export class PetSanctuaryManager {
       timestamp: now,
     };
     pet.lastActiveAt = now;
+
+    // 1. Check Gacha command (!gacha, !random, !doi, !roll)
+    if (['!gacha', '!random', '!doi', '!roll'].includes(cleanCmd)) {
+      const otherSpecies = SPECIES_LIST.filter((s) => s !== pet.species);
+      const nextSpecies = otherSpecies[Math.floor(Math.random() * otherSpecies.length)];
+      pet.species = nextSpecies;
+      const stageInfo = this.getStageInfo(pet.species, pet.level);
+      pet.stageId = stageInfo.stageId;
+      pet.stageName = stageInfo.stageName;
+      pet.actionState = 'playing';
+      pet.actionExpiresAt = now + 2800;
+      pet.lastInteraction = {
+        id: this.generateId('gacha'),
+        type: 'levelup',
+        label: '🎲 GACHA ĐỔI THÚ!',
+        subtext: stageInfo.stageName,
+        timestamp: now,
+      };
+      const evolutionEvent = this.addExp(pet, 28, now);
+      return { pet, evolutionEvent };
+    }
+
+    // 2. Check direct Species switch command (!dragon, !fox, !panda, !unicorn, etc.)
+    if (CHAT_SPECIES_ALIASES[cleanCmd]) {
+      const targetSpecies = CHAT_SPECIES_ALIASES[cleanCmd];
+      pet.species = targetSpecies;
+      const stageInfo = this.getStageInfo(pet.species, pet.level);
+      pet.stageId = stageInfo.stageId;
+      pet.stageName = stageInfo.stageName;
+      pet.actionState = 'playing';
+      pet.actionExpiresAt = now + 2800;
+      pet.lastInteraction = {
+        id: this.generateId('switch'),
+        type: 'levelup',
+        label: '✨ TRIỆU HỒI TỘC MỚI!',
+        subtext: stageInfo.stageName,
+        timestamp: now,
+      };
+      const evolutionEvent = this.addExp(pet, 25, now);
+      return { pet, evolutionEvent };
+    }
 
     if (pet.actionState !== 'evolving') {
       pet.actionState = 'happy';
@@ -301,8 +425,10 @@ export class PetSanctuaryManager {
   private addExp(pet: ViewerPetState, gainedExp: number, now: number): PetEvolutionEvent | undefined {
     const initialStageId = pet.stageId;
     const initialStageName = pet.stageName;
+    const bonusMultiplier = SPECIES_EXP_BONUS[pet.species] || 1;
+    const finalExp = Math.max(1, Math.round(gainedExp * bonusMultiplier));
 
-    pet.exp += gainedExp;
+    pet.exp += finalExp;
     while (pet.exp >= pet.expRequired) {
       pet.exp -= pet.expRequired;
       pet.level += 1;
