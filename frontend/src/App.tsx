@@ -20,15 +20,85 @@ export const App: React.FC = () => {
     exportJson,
   } = useTikTokLive();
 
-  // Initialize view mode with automatic URL query check (?mode=overlay)
+  // Check if launched as a dedicated OBS Browser Source URL (/obs.html, /obs, ?obs=1, ?mode=overlay)
+  const isPureObsUrl = (() => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname.toLowerCase();
+    const params = new URLSearchParams(window.location.search);
+    return (
+      path.endsWith('/obs.html') ||
+      path.endsWith('/obs') ||
+      params.get('obs') === '1' ||
+      params.get('mode') === 'overlay'
+    );
+  })();
+
+  // Parse ?username=... from URL (supports raw handle, @handle, or full https://www.tiktok.com/@user/live URL)
+  const urlTargetUsername = (() => {
+    if (typeof window === 'undefined') return '';
+    const raw = new URLSearchParams(window.location.search).get('username')?.trim() || '';
+    if (!raw) return '';
+    const match = raw.match(/tiktok\.com\/@([^/?#]+)/i);
+    if (match && match[1]) return match[1];
+    return raw.replace(/^@/, '').split('/')[0].trim();
+  })();
+
+  // Initialize view mode with automatic URL query check
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (isPureObsUrl) return 'overlay';
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      if (params.get('mode') === 'overlay') return 'overlay';
       if (params.get('mode') === 'analytics') return 'analytics';
     }
     return 'hybrid';
   });
+
+  // Make html/body 100% transparent when in pure OBS URL mode
+  useEffect(() => {
+    if (!isPureObsUrl) return;
+    const params = new URLSearchParams(window.location.search);
+    const customBg = params.get('bgColor') || 'transparent';
+    document.documentElement.style.background = customBg;
+    document.body.style.background = customBg;
+    document.body.style.overflow = 'hidden';
+    document.body.classList.remove('bg-[#0a0b10]');
+  }, [isPureObsUrl]);
+
+  // Auto-connect to stream when ?username=... is passed in the URL (like Zerody obs.html)
+  useEffect(() => {
+    if (!urlTargetUsername || !isSocketConnected) return;
+
+    if (snapshot.status === 'IDLE') {
+      if (urlTargetUsername.toLowerCase() === 'demo') {
+        startSimulation('demo_streamer');
+      } else {
+        connectStream({ uniqueId: urlTargetUsername });
+      }
+    } else if (snapshot.status === 'ERROR' && isPureObsUrl) {
+      // Auto-retry every 30s in OBS mode if stream is offline/error
+      const timer = setTimeout(() => {
+        connectStream({ uniqueId: urlTargetUsername });
+      }, 30000);
+      return () => clearTimeout(timer);
+    }
+  }, [urlTargetUsername, isSocketConnected, snapshot.status, isPureObsUrl, connectStream, startSimulation]);
+
+  // Pure Frameless OBS Overlay Mode: render ONLY the overlay canvas (no header, no footer, no website chrome)
+  if (isPureObsUrl) {
+    return (
+      <div className="w-screen h-screen overflow-hidden bg-transparent select-none">
+        <LivePetOverlay
+          activePets={snapshot.activePets}
+          totalPetsCount={snapshot.totalPetsCount}
+          recentEvolutions={snapshot.recentEvolutions}
+          onTestPetInteract={triggerPetInteract}
+          isFullScreen={true}
+          pureObsMode={true}
+          streamUsername={snapshot.roomInfo?.uniqueId || urlTargetUsername}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0b10] text-gray-100 flex flex-col font-sans">
@@ -117,6 +187,7 @@ export const App: React.FC = () => {
                 recentEvolutions={snapshot.recentEvolutions}
                 onTestPetInteract={triggerPetInteract}
                 isFullScreen={false}
+                streamUsername={snapshot.roomInfo?.uniqueId || urlTargetUsername}
                 onToggleFullScreen={() => setViewMode('overlay')}
               />
               <LiveCharts timeSeries={snapshot.timeSeries} />

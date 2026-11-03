@@ -39,6 +39,8 @@ interface LivePetOverlayProps {
   recentEvolutions?: PetEvolutionEvent[];
   onTestPetInteract?: (payload: PetInteractPayload) => void;
   isFullScreen?: boolean;
+  pureObsMode?: boolean;
+  streamUsername?: string;
   onToggleFullScreen?: () => void;
 }
 
@@ -58,17 +60,50 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
   recentEvolutions = [],
   onTestPetInteract,
   isFullScreen = false,
+  pureObsMode = false,
+  streamUsername = '',
   onToggleFullScreen,
 }) => {
-  const [bgMode, setBgMode] = useState<BackgroundMode>('meadow');
+  const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+
+  const [bgMode, setBgMode] = useState<BackgroundMode>(() => {
+    const paramBg = urlParams?.get('bg') as BackgroundMode | null;
+    if (paramBg && ['meadow', 'sakura', 'galaxy', 'chroma', 'transparent'].includes(paramBg)) {
+      return paramBg;
+    }
+    return pureObsMode ? 'transparent' : 'meadow';
+  });
   const [aspectRatio, setAspectRatio] = useState<AspectRatioMode>('16-9');
-  const [maxVisiblePets, setMaxVisiblePets] = useState<number>(16);
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(soundEngine.enabled);
+  const [maxVisiblePets, setMaxVisiblePets] = useState<number>(() => {
+    const paramMax = Number(urlParams?.get('maxPets'));
+    return paramMax > 0 ? paramMax : 16;
+  });
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    if (urlParams?.get('sound') === '0') {
+      soundEngine.enabled = false;
+      return false;
+    }
+    return soundEngine.enabled;
+  });
   const [showControls, setShowControls] = useState<boolean>(true);
   const [selectedPet, setSelectedPet] = useState<ViewerPetState | null>(null);
   const [showCompendium, setShowCompendium] = useState<boolean>(false);
   const [compendiumSpecies, setCompendiumSpecies] = useState<PetSpeciesId>('dragon');
+  const [showObsBuilder, setShowObsBuilder] = useState<boolean>(false);
+  const [obsUsernameInput, setObsUsernameInput] = useState<string>(streamUsername || 'huyga.official');
+  const [obsBgInput, setObsBgInput] = useState<BackgroundMode>('transparent');
+  const [obsShowRank, setObsShowRank] = useState<boolean>(true);
+  const [obsShowFever, setObsShowFever] = useState<boolean>(true);
+  const [obsShowGuide, setObsShowGuide] = useState<boolean>(true);
+  const [obsCopied, setObsCopied] = useState<boolean>(false);
   const [now, setNow] = useState<number>(Date.now());
+
+  const showRankHud = urlParams?.get('showRank') !== '0';
+  const showFeverHud = urlParams?.get('showFever') !== '0';
+  const showGuideHud = pureObsMode ? urlParams?.get('showGuide') !== '0' : true;
+  const customBgColor = urlParams?.get('bgColor') || '';
+  const customFontColor = urlParams?.get('fontColor') || '';
+  const customFontSize = urlParams?.get('fontSize') || '';
   const [walkStates, setWalkStates] = useState<Record<string, PetWalkState>>({});
   const lastEvoIdRef = useRef<string | null>(null);
 
@@ -289,6 +324,7 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
 
   // Aspect ratio styling
   const getContainerAspectClass = () => {
+    if (pureObsMode) return 'w-screen h-screen rounded-none border-0';
     if (isFullScreen) return 'w-full h-full min-h-[600px] flex-1';
     switch (aspectRatio) {
       case '9-16':
@@ -303,11 +339,25 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
 
   const visiblePets = activePets.slice(0, maxVisiblePets);
 
+  const generatedObsUrl = (() => {
+    if (typeof window === 'undefined') return '';
+    const base = `${window.location.origin}/obs.html`;
+    const p = new URLSearchParams();
+    if (obsUsernameInput.trim()) p.set('username', obsUsernameInput.trim());
+    p.set('bg', obsBgInput);
+    p.set('showRank', obsShowRank ? '1' : '0');
+    p.set('showFever', obsShowFever ? '1' : '0');
+    p.set('showGuide', obsShowGuide ? '1' : '0');
+    p.set('maxPets', String(maxVisiblePets));
+    return `${base}?${p.toString()}`;
+  })();
+
   return (
-    <div className="flex flex-col w-full relative">
+    <div className={`flex flex-col w-full relative ${pureObsMode ? 'w-screen h-screen overflow-hidden' : ''}`}>
       {/* =========================================================================
-          Overlay Control Bar (Collapsible for Clean OBS Broadcasting)
+          Overlay Control Bar (Hidden completely in Pure OBS Mode!)
           ========================================================================= */}
+      {!pureObsMode && (
       <div className="bg-[#12141f]/95 backdrop-blur-md border border-white/10 rounded-2xl p-3 mb-3 text-xs shadow-md">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           {/* Title & Stats */}
@@ -439,6 +489,19 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
                 </button>
               </div>
             )}
+
+            {/* OBS URL Builder Button (Zerody-style obs.html link generator) */}
+            <button
+              type="button"
+              onClick={() => {
+                if (streamUsername) setObsUsernameInput(streamUsername);
+                setShowObsBuilder(true);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-tiktok-magenta/20 border border-tiktok-magenta/50 text-white hover:bg-tiktok-magenta/35 font-bold text-[11px] shadow-sm transition"
+            >
+              <Tv className="w-3.5 h-3.5 text-tiktok-cyan" />
+              <span>🎥 Lấy Link OBS</span>
+            </button>
 
             {/* Compendium Button (60 Forms Pokédex) */}
             <button
@@ -589,12 +652,20 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
           </div>
         )}
       </div>
+      )}
 
       {/* =========================================================================
-          Playground Canvas (Sân Cỏ Nuôi Thú 2.5D)
+          Playground Canvas (Sân Cỏ Nuôi Thú 2.5D / Pure Frameless OBS Canvas)
           ========================================================================= */}
       <div
-        className={`relative overflow-hidden rounded-2xl border border-white/10 ${getContainerAspectClass()} ${getBackgroundClass()} transition-all duration-300 select-none`}
+        style={{
+          ...(customBgColor ? { backgroundColor: customBgColor, backgroundImage: 'none' } : {}),
+          ...(customFontColor ? { color: customFontColor } : {}),
+          ...(customFontSize ? { fontSize: customFontSize } : {}),
+        }}
+        className={`relative overflow-hidden ${
+          pureObsMode ? 'w-screen h-screen border-0 rounded-none' : 'rounded-2xl border border-white/10'
+        } ${getContainerAspectClass()} ${getBackgroundClass()} transition-all duration-300 select-none`}
       >
         {/* Visual Environment Details based on theme */}
         {bgMode === 'meadow' && (
@@ -674,7 +745,7 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
         )}
 
         {/* Top-Left: Hall of Fame (Top 3 High Level Pets) */}
-        {topPets.length > 0 && bgMode !== 'chroma' && (
+        {topPets.length > 0 && bgMode !== 'chroma' && showRankHud && (
           <div className="absolute top-3 left-3 z-30 max-w-[200px] pointer-events-auto">
             <div className="p-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/15 text-white shadow-lg">
               <div className="flex items-center gap-1.5 pb-1 mb-1 border-b border-white/10 text-[10px] font-bold text-amber-300 uppercase tracking-wider">
@@ -707,7 +778,7 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
         )}
 
         {/* Top-Center: Community Energy / Fever Boss Bar */}
-        {bgMode !== 'chroma' && (
+        {bgMode !== 'chroma' && showFeverHud && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 w-[230px] sm:w-[290px] pointer-events-none">
             <div
               className={`px-3 py-1.5 rounded-2xl backdrop-blur-md border shadow-xl transition-all duration-500 ${
@@ -740,7 +811,7 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
         )}
 
         {/* Top-Right: Quick Livestream Interactive Guide */}
-        {bgMode !== 'chroma' && (
+        {bgMode !== 'chroma' && showGuideHud && (
           <div className="absolute top-3 right-3 z-30 max-w-[245px] pointer-events-none hidden lg:block">
             <div className="p-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/15 text-white shadow-lg text-[10px] leading-relaxed">
               <div className="flex items-center gap-1 font-bold text-tiktok-cyan mb-0.5">
@@ -793,17 +864,19 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
             Pet Actors on 2.5D Playground
             ========================================================================= */}
         {visiblePets.length === 0 ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 pointer-events-none">
-            <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center mb-3">
-              <Sparkles className="w-8 h-8 text-tiktok-cyan animate-bounce" />
+          pureObsMode ? null : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 pointer-events-none">
+              <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center mb-3">
+                <Sparkles className="w-8 h-8 text-tiktok-cyan animate-bounce" />
+              </div>
+              <h4 className="text-sm font-bold text-white mb-1 drop-shadow-md">
+                Sân Thú Cưng Đang Sẵn Sàng
+              </h4>
+              <p className="text-xs text-gray-200/90 max-w-sm drop-shadow">
+                Bấm nút <strong>"+ Viewer Mới"</strong> hoặc kết nối phiên TikTok Live để khán giả xuất hiện và nuôi dưỡng thú cưng trực tiếp!
+              </p>
             </div>
-            <h4 className="text-sm font-bold text-white mb-1 drop-shadow-md">
-              Sân Thú Cưng Đang Sẵn Sàng
-            </h4>
-            <p className="text-xs text-gray-200/90 max-w-sm drop-shadow">
-              Bấm nút <strong>"+ Viewer Mới"</strong> hoặc kết nối phiên TikTok Live để khán giả xuất hiện và nuôi dưỡng thú cưng trực tiếp!
-            </p>
-          </div>
+          )
         ) : (
           visiblePets.map((pet) => {
             const stage = getStageForSpeciesLevel(pet.species, pet.level);
@@ -1193,6 +1266,147 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
                   </p>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          OBS Overlay URL Generator Modal (Zerody obs.html style)
+          ========================================================================= */}
+      {showObsBuilder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in">
+          <div className="bg-[#12141f] border border-white/15 rounded-2xl w-full max-w-xl p-5 shadow-2xl text-left">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+              <div className="flex items-center gap-2">
+                <Tv className="w-5 h-5 text-tiktok-cyan" />
+                <div>
+                  <h3 className="text-base font-black text-white">
+                    Trình Tạo Link OBS Overlay Độc Lập (obs.html)
+                  </h3>
+                  <p className="text-[11px] text-gray-400">
+                    Chỉ hiển thị thuần lớp Overlay (không có thanh menu web, nền trong suốt 100%, tự động kết nối kênh)
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowObsBuilder(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-gray-300 font-bold mb-1">
+                  1. Tài khoản TikTok LIVE (hoặc gõ <code className="text-tiktok-cyan">demo</code> để tự chạy giả lập):
+                </label>
+                <input
+                  type="text"
+                  value={obsUsernameInput}
+                  onChange={(e) => setObsUsernameInput(e.target.value)}
+                  placeholder="VD: huyga.official hoặc https://www.tiktok.com/@huyga.official/live"
+                  className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/15 text-white focus:outline-none focus:border-tiktok-cyan font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold mb-1">
+                  2. Phông nền Overlay trên OBS:
+                </label>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                  {(
+                    [
+                      { id: 'transparent', label: '🏁 Trong Suốt' },
+                      { id: 'meadow', label: '🌅 Thảo Nguyên' },
+                      { id: 'sakura', label: '🌸 Sakura' },
+                      { id: 'galaxy', label: '🌌 Ngân Hà' },
+                      { id: 'chroma', label: '🟩 Phông Xanh' },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setObsBgInput(opt.id)}
+                      className={`px-2 py-1.5 rounded-xl font-bold text-[11px] border transition ${
+                        obsBgInput === opt.id
+                          ? 'bg-tiktok-cyan/20 border-tiktok-cyan text-white'
+                          : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold mb-1">
+                  3. Tuỳ chọn các bảng HUD phụ trên màn hình:
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <label className="flex items-center gap-2 p-2 rounded-xl bg-white/[0.04] border border-white/10 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={obsShowRank}
+                      onChange={(e) => setObsShowRank(e.target.checked)}
+                      className="accent-tiktok-cyan"
+                    />
+                    <span>👑 Top Thần Thú</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-xl bg-white/[0.04] border border-white/10 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={obsShowFever}
+                      onChange={(e) => setObsShowFever(e.target.checked)}
+                      className="accent-tiktok-cyan"
+                    />
+                    <span>⚡ Thanh Fever</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-xl bg-white/[0.04] border border-white/10 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={obsShowGuide}
+                      onChange={(e) => setObsShowGuide(e.target.checked)}
+                      className="accent-tiktok-cyan"
+                    />
+                    <span>💬 Bảng Lệnh Chat</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <label className="block text-amber-300 font-bold mb-1">
+                  🔗 URL gắn vào OBS Browser Source:
+                </label>
+                <div className="p-2.5 rounded-xl bg-black/70 border border-amber-400/30 font-mono text-[11px] text-tiktok-cyan break-all select-all">
+                  {generatedObsUrl}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(generatedObsUrl);
+                  setObsCopied(true);
+                  setTimeout(() => setObsCopied(false), 2000);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-tiktok-cyan to-emerald-400 text-black hover:brightness-110 active:scale-95 transition"
+              >
+                {obsCopied ? '✓ Đã Copy Link OBS!' : '📋 Copy Link OBS'}
+              </button>
+              <a
+                href={generatedObsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-white/10 text-white hover:bg-white/20 transition"
+              >
+                ↗ Mở Xem Thử Tab Mới
+              </a>
             </div>
           </div>
         </div>
