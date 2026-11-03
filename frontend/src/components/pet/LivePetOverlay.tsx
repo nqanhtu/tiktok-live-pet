@@ -71,7 +71,7 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
     if (paramBg && ['meadow', 'sakura', 'galaxy', 'chroma', 'transparent'].includes(paramBg)) {
       return paramBg;
     }
-    return pureObsMode ? 'transparent' : 'meadow';
+    return 'meadow';
   });
   const [aspectRatio, setAspectRatio] = useState<AspectRatioMode>('16-9');
   const [maxVisiblePets, setMaxVisiblePets] = useState<number>(() => {
@@ -91,16 +91,16 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
   const [compendiumSpecies, setCompendiumSpecies] = useState<PetSpeciesId>('dragon');
   const [showObsBuilder, setShowObsBuilder] = useState<boolean>(false);
   const [obsUsernameInput, setObsUsernameInput] = useState<string>(streamUsername || 'huyga.official');
-  const [obsBgInput, setObsBgInput] = useState<BackgroundMode>('transparent');
-  const [obsShowRank, setObsShowRank] = useState<boolean>(true);
-  const [obsShowFever, setObsShowFever] = useState<boolean>(true);
-  const [obsShowGuide, setObsShowGuide] = useState<boolean>(true);
+  const [obsBgInput, setObsBgInput] = useState<BackgroundMode>('meadow');
+  const [obsShowRank, setObsShowRank] = useState<boolean>(false);
+  const [obsShowFever, setObsShowFever] = useState<boolean>(false);
+  const [obsShowGuide, setObsShowGuide] = useState<boolean>(false);
   const [obsCopied, setObsCopied] = useState<boolean>(false);
   const [now, setNow] = useState<number>(Date.now());
 
-  const showRankHud = urlParams?.get('showRank') !== '0';
-  const showFeverHud = urlParams?.get('showFever') !== '0';
-  const showGuideHud = pureObsMode ? urlParams?.get('showGuide') !== '0' : true;
+  const showRankHud = pureObsMode ? urlParams?.get('showRank') === '1' : urlParams?.get('showRank') !== '0';
+  const showFeverHud = pureObsMode ? urlParams?.get('showFever') === '1' : urlParams?.get('showFever') !== '0';
+  const showGuideHud = pureObsMode ? urlParams?.get('showGuide') === '1' : urlParams?.get('showGuide') !== '0';
   const customBgColor = urlParams?.get('bgColor') || '';
   const customFontColor = urlParams?.get('fontColor') || '';
   const customFontSize = urlParams?.get('fontSize') || '';

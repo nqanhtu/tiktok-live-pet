@@ -83,10 +83,10 @@ export const App: React.FC = () => {
     }
   }, [urlTargetUsername, isSocketConnected, snapshot.status, isPureObsUrl, connectStream, startSimulation]);
 
-  // Pure Frameless OBS Overlay Mode: render ONLY the overlay canvas (no header, no footer, no website chrome)
-  if (isPureObsUrl) {
+  // Pure Frameless OBS Overlay Mode: render ONLY the single Pet Garden frame (no header, no footer, no website chrome)
+  if (isPureObsUrl || viewMode === 'overlay') {
     return (
-      <div className="w-screen h-screen overflow-hidden bg-transparent select-none">
+      <div className="w-screen h-screen overflow-hidden bg-transparent select-none relative group">
         <LivePetOverlay
           activePets={snapshot.activePets}
           totalPetsCount={snapshot.totalPetsCount}
@@ -96,6 +96,15 @@ export const App: React.FC = () => {
           pureObsMode={true}
           streamUsername={snapshot.roomInfo?.uniqueId || urlTargetUsername}
         />
+        {!isPureObsUrl && (
+          <button
+            type="button"
+            onClick={() => setViewMode('hybrid')}
+            className="fixed top-3 right-3 z-50 opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-xl bg-black/70 hover:bg-black/90 text-white text-xs font-bold border border-white/20 backdrop-blur-md transition-opacity duration-200 shadow-lg"
+          >
+            ✕ Thoát Toàn Màn Hình
+          </button>
+        )}
       </div>
     );
   }
@@ -152,22 +161,6 @@ export const App: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* =========================================================================
-          MODE 1: FULLSCREEN OVERLAY (Dành riêng cho OBS Studio / Browser Source)
-          ========================================================================= */}
-      {viewMode === 'overlay' && (
-        <main className="flex-1 w-full p-3 lg:p-4 flex flex-col">
-          <LivePetOverlay
-            activePets={snapshot.activePets}
-            totalPetsCount={snapshot.totalPetsCount}
-            recentEvolutions={snapshot.recentEvolutions}
-            onTestPetInteract={triggerPetInteract}
-            isFullScreen={true}
-            onToggleFullScreen={() => setViewMode('hybrid')}
-          />
-        </main>
-      )}
 
       {/* =========================================================================
           MODE 2: HYBRID (Kết Hợp Sân Thú Cưng + Chỉ Số Realtime + Quà + Chat)
