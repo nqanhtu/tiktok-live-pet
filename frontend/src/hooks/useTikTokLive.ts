@@ -126,6 +126,7 @@ export function useTikTokLive() {
     // Emit via socket if available
     if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit('pet:interact', payload);
+      return;
     }
     // Also try REST API fallback
     fetch('/api/pet/interact', {
