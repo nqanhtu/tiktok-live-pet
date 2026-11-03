@@ -1,0 +1,332 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: #0a0b10;
+    color: #f3f4f6;
+  }
+
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(10, 11, 16, 0.6);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Glassmorphism helpers */
+.glass-panel {
+  background: rgba(17, 19, 31, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-hover {
+  transition: all 0.2s ease-in-out;
+}
+
+.glass-panel-hover:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+}
+
+/* Pulse animation for live indicators */
+@keyframes live-ping {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(254, 44, 85, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px rgba(254, 44, 85, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(254, 44, 85, 0);
+  }
+}
+
+.live-indicator {
+  animation: live-ping 1.8s infinite;
+}
+
+/* =========================================================================
+   MochiBunny Virtual Pet System Keyframes & Animations
+   ========================================================================= */
+
+@keyframes bunnyBreathe {
+  0%, 100% {
+    transform: scale(1) translateY(0);
+  }
+  50% {
+    transform: scale(1.02, 1.03) translateY(-1.5px);
+  }
+}
+
+@keyframes bunnyBounce {
+  0%, 100% {
+    transform: translateY(0) scale(1, 1);
+  }
+  40% {
+    transform: translateY(-10px) scale(0.96, 1.04);
+  }
+  60% {
+    transform: translateY(-12px) scale(0.98, 1.02);
+  }
+  80% {
+    transform: translateY(1px) scale(1.05, 0.95);
+  }
+}
+
+@keyframes bunnyChew {
+  0%, 100% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.04, 0.96) translateY(1px);
+  }
+  75% {
+    transform: scale(0.97, 1.03) translateY(-1px);
+  }
+}
+
+@keyframes earLeftTwitch {
+  0%, 85%, 100% {
+    transform: rotate(0deg);
+  }
+  90% {
+    transform: rotate(-12deg);
+  }
+  95% {
+    transform: rotate(4deg);
+  }
+}
+
+@keyframes earRightTwitch {
+  0%, 82%, 100% {
+    transform: rotate(0deg);
+  }
+  88% {
+    transform: rotate(12deg);
+  }
+  94% {
+    transform: rotate(-4deg);
+  }
+}
+
+@keyframes tailWag {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-14deg);
+  }
+  75% {
+    transform: rotate(14deg);
+  }
+}
+
+@keyframes floatUpFade {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.8);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1.05);
+  }
+  80% {
+    opacity: 0.95;
+    transform: translateY(-24px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-38px) scale(0.9);
+  }
+}
+
+@keyframes foodToss {
+  0% {
+    opacity: 0;
+    transform: translateY(-40px) scale(0.4) rotate(-25deg);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-15px) scale(1.15) rotate(10deg);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.7) rotate(5deg);
+  }
+}
+
+@keyframes wingFlapLeft {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-22deg) scaleX(0.95);
+  }
+}
+
+@keyframes wingFlapRight {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(22deg) scaleX(0.95);
+  }
+}
+
+@keyframes auraPulse {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(0.96);
+    filter: drop-shadow(0 0 10px rgba(254, 44, 85, 0.4));
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.06);
+    filter: drop-shadow(0 0 24px rgba(0, 242, 254, 0.7));
+  }
+}
+
+@keyframes evolveSpin {
+  0% {
+    transform: scale(0.85) rotate(0deg);
+    filter: brightness(1) drop-shadow(0 0 10px gold);
+  }
+  50% {
+    transform: scale(1.25) rotate(180deg);
+    filter: brightness(2) drop-shadow(0 0 35px #00f2fe);
+  }
+  100% {
+    transform: scale(1) rotate(360deg);
+    filter: brightness(1.2) drop-shadow(0 0 20px #fe2c55);
+  }
+}
+
+@keyframes sleepBubble {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.5);
+  }
+  40% {
+    opacity: 0.85;
+    transform: translateY(-12px) scale(1.1);
+  }
+  80% {
+    opacity: 0.9;
+    transform: translateY(-22px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-32px) scale(0.7);
+  }
+}
+
+.animate-bunny-breathe {
+  animation: bunnyBreathe 3.2s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+.animate-bunny-bounce {
+  animation: bunnyBounce 0.75s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+.animate-bunny-chew {
+  animation: bunnyChew 0.4s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+.animate-ear-left {
+  animation: earLeftTwitch 3.8s ease-in-out infinite;
+  transform-origin: bottom right;
+}
+
+.animate-ear-right {
+  animation: earRightTwitch 4.2s ease-in-out infinite;
+  transform-origin: bottom left;
+}
+
+.animate-tail-wag {
+  animation: tailWag 0.6s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+.animate-float-up {
+  animation: floatUpFade 2.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.animate-food-toss {
+  animation: foodToss 1.6s ease-out forwards;
+}
+
+.animate-wing-left {
+  animation: wingFlapLeft 0.5s ease-in-out infinite;
+  transform-origin: right center;
+}
+
+.animate-wing-right {
+  animation: wingFlapRight 0.5s ease-in-out infinite;
+  transform-origin: left center;
+}
+
+.animate-aura-pulse {
+  animation: auraPulse 2.4s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+.animate-evolve {
+  animation: evolveSpin 1.8s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+  transform-origin: center center;
+}
+
+.animate-sleep-z {
+  animation: sleepBubble 2.2s ease-in-out infinite;
+}
+
+@keyframes petWalkHop {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg) scale(1, 1);
+  }
+  25% {
+    transform: translateY(-7px) rotate(-3.5deg) scale(0.98, 1.03);
+  }
+  50% {
+    transform: translateY(0px) rotate(0deg) scale(1.03, 0.97);
+  }
+  75% {
+    transform: translateY(-7px) rotate(3.5deg) scale(0.98, 1.03);
+  }
+}
+
+.animate-pet-walk {
+  animation: petWalkHop 0.55s ease-in-out infinite;
+  transform-origin: bottom center;
+}
