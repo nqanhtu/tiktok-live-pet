@@ -158,7 +158,7 @@ export class SessionManager {
   public handlePetInteract(
     rawId: string,
     payload: {
-      action: 'spawn' | 'chat' | 'like' | 'gift';
+      action: 'spawn' | 'chat' | 'like' | 'gift' | 'leave';
       uniqueId?: string;
       nickname?: string;
       comment?: string;
@@ -180,6 +180,8 @@ export class SessionManager {
         uniqueId: uid,
         nickname: name,
       });
+    } else if (payload.action === 'leave') {
+      store.removeViewerPet(payload.uniqueId);
     } else if (payload.action === 'chat') {
       store.addChat({
         uniqueId: uid,

@@ -3,7 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import { DashboardSnapshot, ConnectPayload } from '../types';
 
 export interface PetInteractPayload {
-  action: 'spawn' | 'chat' | 'like' | 'gift';
+  action: 'spawn' | 'chat' | 'like' | 'gift' | 'leave';
   uniqueId?: string;
   nickname?: string;
   comment?: string;

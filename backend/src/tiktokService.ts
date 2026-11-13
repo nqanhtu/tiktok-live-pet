@@ -106,7 +106,7 @@ export class TikTokService extends EventEmitter {
       }
 
       const connectionOptions: any = {
-        processInitialData: true,
+        processInitialData: false,
         fetchRoomInfoOnConnect: true,
         enableExtendedGiftInfo: false,
       };
@@ -219,15 +219,55 @@ export class TikTokService extends EventEmitter {
       });
 
       this.connection.on('roomUser', (data: any) => {
-        const viewerCount = Number(data.viewerCount ?? data.viewer_count ?? data.total ?? 0);
-        if (viewerCount > 0) {
-          this.store.updateViewerCount(viewerCount);
+        const rawCount = data.viewerCount ?? data.viewer_count ?? data.total;
+        const rawEntries = [
+          ...(Array.isArray(data.ranks) ? data.ranks : []),
+          ...(Array.isArray(data.ranksList) ? data.ranksList : []),
+          ...(Array.isArray(data.seats) ? data.seats : []),
+          ...(Array.isArray(data.topViewers) ? data.topViewers : []),
+        ];
+
+        const onlineUsersMap = new Map<
+          string,
+          { uniqueId: string; nickname?: string; avatarUrl?: string }
+        >();
+        for (const item of rawEntries) {
+          const user = item?.user || item;
+          const uniqueId = user?.uniqueId || user?.displayId;
+          if (!uniqueId || onlineUsersMap.has(uniqueId)) continue;
+          const nickname = user?.nickname || uniqueId;
+          const avatarUrl =
+            user?.profilePictureUrl ||
+            user?.avatarLarge?.urlList?.[0] ||
+            user?.avatarThumb?.urlList?.[0] ||
+            user?.avatarThumb?.url_list?.[0];
+          onlineUsersMap.set(uniqueId, { uniqueId, nickname, avatarUrl });
+        }
+        const onlineUsers = Array.from(onlineUsersMap.values());
+
+        if (rawCount !== undefined && rawCount !== null && !Number.isNaN(Number(rawCount))) {
+          this.store.updateViewerCount(Number(rawCount), onlineUsers);
+        } else if (onlineUsers.length > 0) {
+          this.store.getPetSanctuary().syncRoomViewers(undefined, onlineUsers);
         }
       });
 
       this.connection.on('member', (data: any) => {
         if (this.isDuplicateMsg(data)) return;
+        if (typeof data.memberCount === 'number' && data.memberCount >= 0) {
+          this.store.updateViewerCount(data.memberCount);
+        }
+
         const uniqueId = data.uniqueId || data.user?.uniqueId || data.user?.displayId || 'viewer';
+        if (
+          Number(data.action) === 2 ||
+          Number(data.kickSource) > 0 ||
+          /leave|left|kick/i.test(String(data.actionDescription || ''))
+        ) {
+          this.store.removeViewerPet(uniqueId);
+          return;
+        }
+
         const nickname = data.nickname || data.user?.nickname || uniqueId;
         const avatarUrl =
           data.profilePictureUrl ||
@@ -333,10 +373,8 @@ export class TikTokService extends EventEmitter {
       // Extract room info
       const rawInfo = this.connection?.roomInfo?.data || this.connection?.roomInfo || state?.roomInfo?.data || state?.roomInfo || {};
       const owner = rawInfo.owner || {};
-      const initialViewers = Number(rawInfo.user_count || rawInfo.stats?.total_user || 0);
-      if (initialViewers > 0) {
-        this.store.updateViewerCount(initialViewers);
-      }
+      const initialViewers = Number(rawInfo.user_count ?? 0);
+      this.store.updateViewerCount(Number.isNaN(initialViewers) ? 0 : initialViewers);
       const initialLikes = Number(rawInfo.like_count || rawInfo.stats?.like_count || 0);
       if (initialLikes > 0) {
         this.store.addLikes(0, initialLikes);
@@ -386,6 +424,7 @@ export class TikTokService extends EventEmitter {
             avatarUrl: avatar,
             level: fanLevel,
             totalDiamonds: diamonds,
+            isPresent: false,
           });
         });
       }

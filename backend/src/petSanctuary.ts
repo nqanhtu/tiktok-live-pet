@@ -149,6 +149,11 @@ const STAGE_DEFS: Record<PetSpeciesId, StageDef[]> = {
 export class PetSanctuaryManager {
   private pets = new Map<string, ViewerPetState>();
   private recentEvolutions: PetEvolutionEvent[] = [];
+  private presentUsers = new Set<string>();
+  private rankedOnlineUsers = new Set<string>();
+  private everSeenInRoomRank = new Set<string>();
+  private lastKnownViewerCount: number | null = null;
+  private inactivityTimeoutMs = 90 * 1000;
 
   public getExpRequired(level: number): number {
     return Math.floor(55 * Math.pow(Math.max(1, level), 1.32));
@@ -186,7 +191,10 @@ export class PetSanctuaryManager {
     return { x, y };
   }
 
-  public getOrCreatePet(user: { uniqueId: string; nickname?: string; avatarUrl?: string }): ViewerPetState {
+  public getOrCreatePet(
+    user: { uniqueId: string; nickname?: string; avatarUrl?: string },
+    markPresent = true
+  ): ViewerPetState {
     let pet = this.pets.get(user.uniqueId);
     if (!pet) {
       // Pick random species
@@ -217,7 +225,17 @@ export class PetSanctuaryManager {
       };
 
       this.pets.set(user.uniqueId, pet);
+      if (markPresent) {
+        this.presentUsers.add(user.uniqueId);
+      }
     } else {
+      if (markPresent) {
+        const wasPresent = this.presentUsers.has(user.uniqueId);
+        this.presentUsers.add(user.uniqueId);
+        if (!wasPresent) {
+          pet.lastActiveAt = Date.now();
+        }
+      }
       if (user.nickname && pet.nickname !== user.nickname) {
         pet.nickname = user.nickname;
       }
@@ -226,6 +244,36 @@ export class PetSanctuaryManager {
       }
     }
     return pet;
+  }
+
+  public handleLeave(uniqueId?: string): string | undefined {
+    let targetId = uniqueId;
+
+    if (!targetId) {
+      let oldestTime = Infinity;
+      for (const uid of this.presentUsers) {
+        const pet = this.pets.get(uid);
+        const activeAt = pet?.lastActiveAt ?? 0;
+        if (activeAt < oldestTime) {
+          oldestTime = activeAt;
+          targetId = uid;
+        }
+      }
+    }
+
+    if (!targetId) return undefined;
+
+    this.presentUsers.delete(targetId);
+    this.rankedOnlineUsers.delete(targetId);
+    this.everSeenInRoomRank.delete(targetId);
+    return targetId;
+  }
+
+  public clearPresentPets(): void {
+    this.presentUsers.clear();
+    this.rankedOnlineUsers.clear();
+    this.everSeenInRoomRank.clear();
+    this.lastKnownViewerCount = null;
   }
 
   public handleJoin(user: {
@@ -265,6 +313,12 @@ export class PetSanctuaryManager {
       timestamp: now,
     };
     pet.lastActiveAt = now;
+
+    // 0. Check Leave command (!leave, !roi, !bye, !out, !quit)
+    if (['!leave', '!roi', '!bye', '!out', '!quit'].includes(cleanCmd)) {
+      this.handleLeave(user.uniqueId);
+      return { pet };
+    }
 
     // 1. Check Gacha command (!gacha, !random, !doi, !roll)
     if (['!gacha', '!random', '!doi', '!roll'].includes(cleanCmd)) {
@@ -484,12 +538,21 @@ export class PetSanctuaryManager {
     totalDiamonds?: number;
     totalLikes?: number;
     totalComments?: number;
+    isPresent?: boolean;
   }): ViewerPetState {
-    const pet = this.getOrCreatePet({
-      uniqueId: data.uniqueId,
-      nickname: data.nickname,
-      avatarUrl: data.avatarUrl,
-    });
+    const isPresent = data.isPresent ?? true;
+    const pet = this.getOrCreatePet(
+      {
+        uniqueId: data.uniqueId,
+        nickname: data.nickname,
+        avatarUrl: data.avatarUrl,
+      },
+      isPresent
+    );
+
+    if (data.isPresent === false) {
+      this.presentUsers.delete(data.uniqueId);
+    }
 
     if (data.species) {
       pet.species = data.species;
@@ -514,11 +577,111 @@ export class PetSanctuaryManager {
     return pet;
   }
 
+  public syncRoomViewers(
+    viewerCount?: number,
+    onlineUsers?: Array<{ uniqueId: string; nickname?: string; avatarUrl?: string }>
+  ): void {
+    const now = Date.now();
+
+    if (Array.isArray(onlineUsers)) {
+      this.rankedOnlineUsers = new Set(onlineUsers.map((u) => u.uniqueId).filter(Boolean));
+
+      for (const u of onlineUsers) {
+        if (!u.uniqueId) continue;
+        this.everSeenInRoomRank.add(u.uniqueId);
+        const pet = this.pets.get(u.uniqueId);
+        if (pet) {
+          this.presentUsers.add(u.uniqueId);
+          pet.lastActiveAt = now;
+          if (u.nickname && pet.nickname !== u.nickname) {
+            pet.nickname = u.nickname;
+          }
+          if (u.avatarUrl && (!pet.avatarUrl || pet.avatarUrl.includes('ui-avatars.com'))) {
+            pet.avatarUrl = u.avatarUrl;
+          }
+        }
+      }
+
+      if (this.rankedOnlineUsers.size > 0) {
+        for (const uid of Array.from(this.presentUsers)) {
+          if (
+            this.everSeenInRoomRank.has(uid) &&
+            !this.rankedOnlineUsers.has(uid) &&
+            now - (this.pets.get(uid)?.lastActiveAt ?? 0) > 8000
+          ) {
+            this.handleLeave(uid);
+          }
+        }
+      }
+    }
+
+    if (typeof viewerCount === 'number' && !Number.isNaN(viewerCount) && viewerCount >= 0) {
+      const prevCount = this.lastKnownViewerCount;
+      this.lastKnownViewerCount = viewerCount;
+
+      if (viewerCount === 0) {
+        this.clearPresentPets();
+        return;
+      }
+
+      if (this.presentUsers.size > viewerCount) {
+        const excess = this.presentUsers.size - viewerCount;
+        const candidates = Array.from(this.presentUsers)
+          .map((uid) => ({
+            uid,
+            isRanked: this.rankedOnlineUsers.has(uid),
+            lastActiveAt: this.pets.get(uid)?.lastActiveAt ?? 0,
+          }))
+          .sort((a, b) => {
+            if (a.isRanked !== b.isRanked) return a.isRanked ? 1 : -1;
+            return a.lastActiveAt - b.lastActiveAt;
+          });
+
+        for (let i = 0; i < excess && i < candidates.length; i++) {
+          this.handleLeave(candidates[i].uid);
+        }
+      } else if (prevCount !== null && viewerCount < prevCount) {
+        const dropped = prevCount - viewerCount;
+        const candidates = Array.from(this.presentUsers)
+          .filter((uid) => {
+            if (this.rankedOnlineUsers.has(uid)) return false;
+            const pet = this.pets.get(uid);
+            return !pet || now - pet.lastActiveAt > 6000;
+          })
+          .map((uid) => ({
+            uid,
+            lastActiveAt: this.pets.get(uid)?.lastActiveAt ?? 0,
+          }))
+          .sort((a, b) => a.lastActiveAt - b.lastActiveAt);
+
+        for (let i = 0; i < dropped && i < candidates.length; i++) {
+          this.handleLeave(candidates[i].uid);
+        }
+      }
+    }
+  }
+
+  private pruneInactivePets(now: number): void {
+    for (const uid of Array.from(this.presentUsers)) {
+      const pet = this.pets.get(uid);
+      if (!pet) {
+        this.presentUsers.delete(uid);
+        continue;
+      }
+      if (!this.rankedOnlineUsers.has(uid) && now - pet.lastActiveAt > this.inactivityTimeoutMs) {
+        this.handleLeave(uid);
+      }
+    }
+  }
+
   public getActivePets(limit = 24): ViewerPetState[] {
     const now = Date.now();
+    this.pruneInactivePets(now);
     const petList: ViewerPetState[] = [];
 
-    for (const pet of this.pets.values()) {
+    for (const uid of this.presentUsers) {
+      const pet = this.pets.get(uid);
+      if (!pet) continue;
       // Revert expired actions to idle
       if (pet.actionExpiresAt > 0 && now >= pet.actionExpiresAt) {
         pet.actionState = 'idle';
@@ -567,7 +730,7 @@ export class PetSanctuaryManager {
   }
 
   public getTotalPetsCount(): number {
-    return this.pets.size;
+    return this.presentUsers.size;
   }
 
   public getRecentEvolutions(): PetEvolutionEvent[] {
@@ -577,5 +740,6 @@ export class PetSanctuaryManager {
   public reset(): void {
     this.pets.clear();
     this.recentEvolutions = [];
+    this.clearPresentPets();
   }
 }

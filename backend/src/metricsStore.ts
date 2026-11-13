@@ -74,6 +74,7 @@ export class MetricsStore extends EventEmitter {
     this.errorMessage = errorMessage;
     if (status === 'IDLE' || status === 'ENDED' || status === 'ERROR') {
       this.activeStreaks.clear();
+      this.petSanctuary.clearPresentPets();
     }
   }
 
@@ -85,11 +86,21 @@ export class MetricsStore extends EventEmitter {
     return this.status;
   }
 
-  public updateViewerCount(count: number) {
+  public updateViewerCount(
+    count: number,
+    onlineUsers?: Array<{ uniqueId: string; nickname?: string; avatarUrl?: string }>
+  ) {
     this.kpis.viewerCount = Math.max(0, count);
     if (this.kpis.viewerCount > this.kpis.peakViewerCount) {
       this.kpis.peakViewerCount = this.kpis.viewerCount;
     }
+    if (this.status === 'LIVE') {
+      this.petSanctuary.syncRoomViewers(this.kpis.viewerCount, onlineUsers);
+    }
+  }
+
+  public removeViewerPet(uniqueId?: string): string | undefined {
+    return this.petSanctuary.handleLeave(uniqueId);
   }
 
   public addLikes(

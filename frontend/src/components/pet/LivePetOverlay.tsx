@@ -12,6 +12,7 @@ import {
   Gift,
   MessageCircle,
   UserPlus,
+  UserMinus,
   Zap,
   ChevronDown,
   ChevronUp,
@@ -117,6 +118,14 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
         const next: Record<string, PetWalkState> = { ...prev };
         let changed = false;
 
+        const activeIds = new Set(activePets.map((p) => p.uniqueId));
+        for (const existingId of Object.keys(next)) {
+          if (!activeIds.has(existingId)) {
+            delete next[existingId];
+            changed = true;
+          }
+        }
+
         for (const pet of activePets.slice(0, maxVisiblePets)) {
           const id = pet.uniqueId;
           const isChatting = Boolean(pet.lastChat && currentTime - pet.lastChat.timestamp < 6500);
@@ -187,6 +196,13 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
     return () => clearInterval(interval);
   }, [activePets, maxVisiblePets]);
 
+  // Close pet detail modal automatically if the viewer left the live stream
+  useEffect(() => {
+    if (selectedPet && !activePets.some((p) => p.uniqueId === selectedPet.uniqueId)) {
+      setSelectedPet(null);
+    }
+  }, [activePets, selectedPet]);
+
   // Monitor evolutions to play evolution fanfare sound
   useEffect(() => {
     if (recentEvolutions && recentEvolutions.length > 0) {
@@ -235,6 +251,13 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
       nickname: `Khán Giả ${randomNum}`,
     });
     soundEngine.playPetSound('bunny');
+  };
+
+  const handleTestLeave = () => {
+    onTestPetInteract?.({
+      action: 'leave',
+    });
+    soundEngine.playSoftAlert();
   };
 
   const handleTestChat = () => {
@@ -579,6 +602,15 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
               >
                 <UserPlus className="w-3 h-3" />
                 <span>+ Viewer Mới</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTestLeave}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30 font-medium active:scale-95 transition"
+              >
+                <UserMinus className="w-3 h-3" />
+                <span>- Viewer Rời</span>
               </button>
 
               <button
@@ -1117,6 +1149,21 @@ export const LivePetOverlay: React.FC<LivePetOverlayProps> = ({
             </div>
 
             <div className="flex justify-end gap-2">
+              {onTestPetInteract && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onTestPetInteract({
+                      action: 'leave',
+                      uniqueId: selectedPet.uniqueId,
+                    });
+                    setSelectedPet(null);
+                  }}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 active:scale-95 transition"
+                >
+                  👋 Cho Thú Rời Sân
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
